@@ -342,20 +342,38 @@ export async function GET(
       case "valuation":
         const calculatedPEG = (per > 0 && earningsGrowthValue > 0) ? per / (earningsGrowthValue * 100) : null;
         const displayPEG = peg > 0 ? peg : calculatedPEG;
+        
+        // PER 상태/요약 함수
+        const getPERStatusText = () => {
+          if (isNegativePER) return "적자 기업";
+          if (per < 15) return "낮은 편";
+          if (per < 40) return "보통";
+          if (per < 60) return "높은 편";
+          return "매우 높음";
+        };
+        const getPERSummary = () => {
+          if (isNegativePER) return "적자 기업이라 PER을 산정하기 어려워요";
+          if (per < 15) return "PER이 낮은 편이에요";
+          if (per < 40) return "PER이 보통 수준이에요";
+          if (per < 60) return "PER이 높은 편이에요";
+          return "PER이 매우 높아요";
+        };
+        
         metricData = {
           title: "현재 몸값", emoji: "💎",
-          status: isNegativePER ? "적자 기업" : (per < 20 ? "저평가" : per < 40 ? "적정" : "고평가"),
-          statusColor: isNegativePER ? "yellow" : getStatus(per, { good: 20, bad: 40 }, false),
-          summary: isNegativePER ? "적자 기업이라 PER을 산정하기 어려워요" : per < 15 ? "저평가 구간이에요" : per < 25 ? "적정 가격이에요" : per < 40 ? "조금 비싼 편이에요" : "많이 비싸요",
+          status: getPERStatusText(),
+          statusColor: isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false),
+          summary: getPERSummary(),
           dataYear: "현재 주가 기준",
           metrics: [
             { 
               name: perType ? `PER (${perType})` : "PER", 
               description: perType === "TTM" ? "💡 최근 12개월 실제 이익 기준" : "💡 예상 이익 기준",
               value: isNegativePER ? "적자 기업" : formatRatio(per), 
-              status: isNegativePER ? "yellow" : getStatus(per, { good: 20, bad: 40 }, false), 
+              status: isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false), 
               benchmark: "📅 현재 주가 기준", 
-              interpretation: isNegativePER ? "적자라 PER 산정 불가" : `${per < 15 ? "저평가 (15↓)" : per < 25 ? "적정 (15~25)" : per < 40 ? "다소 높음 (25~40)" : "고평가 (40↑)"}` 
+              interpretation: isNegativePER ? "적자라 PER 산정 불가" : `${per < 15 ? "낮은 편 (15↓)" : per < 40 ? "보통 (15~40)" : per < 60 ? "높은 편 (40~60)" : "매우 높음 (60↑)"}`,
+              contextNote: "💡 업종마다 적정 PER이 달라요. 성장주는 40~60도 일반적이에요."
             },
             { 
               name: "PEG (성장 대비 가격)", 
@@ -363,7 +381,7 @@ export async function GET(
               value: displayPEG && displayPEG > 0 ? formatRatio(displayPEG) : "데이터 부족", 
               status: displayPEG && displayPEG > 0 ? getStatus(displayPEG, { good: 1, bad: 2 }, false) : "yellow", 
               benchmark: "📅 예상 성장률 기준", 
-              interpretation: displayPEG && displayPEG > 0 ? `${displayPEG < 0.5 ? "매우 저평가 (0.5↓)" : displayPEG < 1 ? "저평가 (1↓)" : displayPEG < 2 ? "적정 (1~2)" : "고평가 (2↑)"}` : "데이터 부족" 
+              interpretation: displayPEG && displayPEG > 0 ? `${displayPEG < 0.5 ? "매우 낮음 (0.5↓)" : displayPEG < 1 ? "낮은 편 (1↓)" : displayPEG < 2 ? "보통 (1~2)" : "높은 편 (2↑)"}` : "데이터 부족" 
             },
             { 
               name: "PBR (주가순자산비율)", 
@@ -371,10 +389,10 @@ export async function GET(
               value: pbr > 0 ? formatRatio(pbr) : "데이터 없음", 
               status: pbr > 0 ? getStatus(pbr, { good: 3, bad: 10 }, false) : "yellow", 
               benchmark: `📅 ${latestFiscalYear}년 기준`, 
-              interpretation: pbr > 0 ? `${pbr < 1 ? "저평가 (1↓)" : pbr < 3 ? "적정 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "고평가 (5↑)"}` : "데이터 부족" 
+              interpretation: pbr > 0 ? `${pbr < 1 ? "낮은 편 (1↓)" : pbr < 3 ? "보통 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "높은 편 (5↑)"}` : "데이터 부족" 
             },
           ],
-          whyImportant: isNegativePER || isLossCompany ? ["적자 기업은 PER 대신 PSR이나 PBR로 평가해요", "흑자 전환 시점과 성장 가능성이 더 중요해요"] : ["좋은 회사도 너무 비싸게 사면 수익 내기 어려워요", "PEG가 1 이하면 성장률 대비 저평가된 거예요"],
+          whyImportant: isNegativePER || isLossCompany ? ["적자 기업은 PER 대신 PSR이나 PBR로 평가해요", "흑자 전환 시점과 성장 가능성이 더 중요해요"] : ["업종마다 적정 PER이 달라요 (기술주 vs 금융주)", "PEG가 1 이하면 성장률 대비 매력적일 수 있어요"],
           decisionPoint: isNegativePER || isLossCompany ? ["흑자 전환 가능성이 있다면 → 장기 투자 고려", "적자가 지속된다면 → 리스크가 커요"] : ["성장이 계속되면 → 지금 가격도 정당화됨", "성장이 꺾이면 → 비싸게 산 게 됨"],
         };
         break;

@@ -700,17 +700,39 @@ export async function GET(
       : null;
     const displayPEG = peg > 0 ? peg : calculatedPEG;
 
+    // 업종별 PER 참고 문구
+    const getPERContextNote = () => {
+      const sector = basicInfo.sector || "";
+      const industry = basicInfo.industry || "";
+      if (industry.includes("Semiconductor") || industry.includes("Software") || sector === "Technology") {
+        return "💡 성장주(기술/반도체)는 PER 40~60도 일반적이에요.";
+      }
+      if (sector === "Financial Services" || sector === "Energy") {
+        return "💡 금융/에너지 업종은 PER 10~20이 보통이에요.";
+      }
+      return "💡 업종마다 적정 PER이 달라요. 동종 업계와 비교해보세요.";
+    };
+
     const getPERStatus = () => {
       if (isNegativePER) return "yellow";
-      return getStatus(per, { good: 20, bad: 40 }, false);
+      // 기준 완화: 60↑ = red, 40~60 = yellow, 15~40 = green
+      return getStatus(per, { good: 40, bad: 60 }, false);
     };
 
     const getPERSummary = () => {
       if (isNegativePER) return "적자 기업이라 PER을 산정하기 어려워요";
-      if (per < 15) return "저평가 구간이에요";
-      if (per < 25) return "적정 가격이에요";
-      if (per < 40) return "조금 비싼 편이에요";
-      return "많이 비싸요";
+      if (per < 15) return "PER이 낮은 편이에요";
+      if (per < 40) return "PER이 보통 수준이에요";
+      if (per < 60) return "PER이 높은 편이에요";
+      return "PER이 매우 높아요";
+    };
+
+    const getPERStatusText = () => {
+      if (isNegativePER) return "적자 기업";
+      if (per < 15) return "낮은 편";
+      if (per < 40) return "보통";
+      if (per < 60) return "높은 편";
+      return "매우 높음";
     };
 
     const valuation = {
@@ -718,9 +740,7 @@ export async function GET(
       title: "현재 몸값",
       emoji: "💎",
       status: getPERStatus(),
-      statusText: isNegativePER 
-        ? "적자 기업" 
-        : (per < 20 ? "저평가" : per < 40 ? "적정" : "고평가"),
+      statusText: getPERStatusText(),
       summary: getPERSummary(),
       mainValue: isNegativePER ? "적자라 산정 불가" : formatRatio(per, "데이터 없음"),
       mainLabel: perType ? `PER (${perType})` : "PER",
@@ -729,14 +749,15 @@ export async function GET(
         {
           name: perType ? `PER (${perType})` : "PER (주가수익비율)",
           description: perType === "TTM" 
-            ? "💡 최근 12개월 실제 이익 기준. 낮을수록 저평가" 
-            : "💡 예상 이익 기준. 낮을수록 저평가",
+            ? "💡 최근 12개월 실제 이익 기준" 
+            : "💡 예상 이익 기준",
           value: isNegativePER ? "적자 기업" : formatRatio(per, "데이터 없음"),
-          status: isNegativePER ? "yellow" : getStatus(per, { good: 20, bad: 40 }, false),
+          status: isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false),
           benchmark: "📅 현재 주가 기준",
           interpretation: isNegativePER 
             ? "적자라 PER 산정 불가" 
-            : `${per < 15 ? "저평가 (15↓)" : per < 25 ? "적정 (15~25)" : per < 40 ? "다소 높음 (25~40)" : "고평가 (40↑)"}`,
+            : `${per < 15 ? "낮은 편 (15↓)" : per < 40 ? "보통 (15~40)" : per < 60 ? "높은 편 (40~60)" : "매우 높음 (60↑)"}`,
+          contextNote: getPERContextNote(),
         },
         {
           name: "PEG (성장 대비 가격)",
@@ -747,7 +768,7 @@ export async function GET(
             : "yellow",
           benchmark: "📅 예상 성장률 기준",
           interpretation: displayPEG && displayPEG > 0
-            ? `${displayPEG < 0.5 ? "매우 저평가 (0.5↓)" : displayPEG < 1 ? "저평가 (1↓)" : displayPEG < 2 ? "적정 (1~2)" : "고평가 (2↑)"}`
+            ? `${displayPEG < 0.5 ? "매우 낮음 (0.5↓)" : displayPEG < 1 ? "낮은 편 (1↓)" : displayPEG < 2 ? "보통 (1~2)" : "높은 편 (2↑)"}`
             : "데이터 부족",
         },
         {
@@ -757,7 +778,7 @@ export async function GET(
           status: pbr > 0 ? getStatus(pbr, { good: 3, bad: 10 }, false) : "yellow",
           benchmark: `📅 ${latestFiscalYear}년 기준`,
           interpretation: pbr > 0
-            ? `${pbr < 1 ? "저평가 (1↓)" : pbr < 3 ? "적정 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "고평가 (5↑)"}`
+            ? `${pbr < 1 ? "낮은 편 (1↓)" : pbr < 3 ? "보통 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "높은 편 (5↑)"}`
             : "데이터 부족",
         },
       ],
@@ -767,8 +788,8 @@ export async function GET(
             "흑자 전환 시점과 성장 가능성이 더 중요해요",
           ]
         : [
-            "좋은 회사도 너무 비싸게 사면 수익 내기 어려워요",
-            "PEG가 1 이하면 성장률 대비 저평가된 거예요",
+            "업종마다 적정 PER이 달라요 (기술주 vs 금융주)",
+            "PEG가 1 이하면 성장률 대비 매력적일 수 있어요",
           ],
       decisionPoint: isNegativePER || isLossCompany
         ? [
@@ -785,19 +806,19 @@ export async function GET(
     const generateAISummary = () => {
       const sentences = [];
       
-      // 1문장: 회사 특성 + 성장성
+      // 1문장: 성장성
       if (isPreRevenueCompany) {
-        sentences.push("아직 매출이 없는 연구개발 단계 기업이에요.");
+        sentences.push("아직 매출이 없는 연구개발 단계예요.");
       } else if (revenueGrowthValue > 0.5) {
-        sentences.push(`매출이 폭발적으로 성장하고 있어요 (${formatPercent(revenueGrowthValue)}).`);
+        sentences.push(`매출이 폭발적으로 성장 중이에요 (${formatPercent(revenueGrowthValue)}).`);
       } else if (revenueGrowthValue > 0.15) {
-        sentences.push(`매출이 빠르게 성장하고 있어요 (${formatPercent(revenueGrowthValue)}).`);
+        sentences.push(`매출이 빠르게 성장 중이에요 (${formatPercent(revenueGrowthValue)}).`);
       } else if (revenueGrowthValue > 0) {
-        sentences.push(`매출이 꾸준히 성장하고 있어요 (${formatPercent(revenueGrowthValue)}).`);
+        sentences.push(`매출이 꾸준히 성장 중이에요 (${formatPercent(revenueGrowthValue)}).`);
       } else if (revenueGrowthValue < -0.1) {
-        sentences.push(`매출이 감소하고 있어서 주의가 필요해요 (${formatPercent(revenueGrowthValue)}).`);
+        sentences.push(`매출이 감소하고 있어요 (${formatPercent(revenueGrowthValue)}).`);
       } else {
-        sentences.push("매출 성장이 정체된 상태예요.");
+        sentences.push("매출 성장이 정체 상태예요.");
       }
       
       // 2문장: 수익성 + 재무 건전성
@@ -824,14 +845,14 @@ export async function GET(
       // 3문장: 밸류에이션 (가격)
       if (isNegativePER) {
         sentences.push("적자라서 PER로 가격을 판단하기 어려워요.");
-      } else if (per > 50) {
-        sentences.push("주가가 많이 올라서 지금 사면 비싸게 사는 셈이에요.");
-      } else if (per > 30) {
-        sentences.push("주가가 다소 비싼 편이에요.");
+      } else if (per > 60) {
+        sentences.push("PER이 매우 높아서 가격 부담이 있어요.");
+      } else if (per > 40) {
+        sentences.push("PER이 높은 편이지만, 성장주에선 일반적인 수준이에요.");
       } else if (per < 15) {
-        sentences.push("주가가 저렴한 편이라 매력적일 수 있어요.");
+        sentences.push("PER이 낮아서 가격 매력이 있을 수 있어요.");
       } else {
-        sentences.push("주가는 적정 수준이에요.");
+        sentences.push("PER은 보통 수준이에요.");
       }
       
       return sentences.join(" ");
@@ -856,7 +877,7 @@ export async function GET(
       if (isNegativeOCF) cons.push(`⚠️ 영업현금흐름 적자 (${formatCurrency(ocfFromHistory)})`);
       if (isLossCompany) cons.push("현재 적자 상태");
       if (isPreRevenueCompany) cons.push("아직 매출 없는 연구개발 단계");
-      if (!isNegativePER && per > 30) cons.push(`PER ${formatRatio(per)}로 밸류에이션 높음`);
+      if (!isNegativePER && per > 60) cons.push(`PER ${formatRatio(per)}로 가격 부담 있음`);
       if (debtToEquity > 1) cons.push(`부채비율 ${formatPercentNoSign(debtToEquity)}로 빚 많음`);
       if (!isPreRevenueCompany && revenueGrowthValue < 0) cons.push("매출 역성장 중");
       if (cons.length === 0) cons.push("시장 변동성 리스크");
