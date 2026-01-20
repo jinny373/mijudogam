@@ -409,7 +409,7 @@ export async function GET(
       status: getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false),
       statusText: debtToEquity < 0.5 ? "우수" : debtToEquity < 1.5 ? "보통" : "주의",
       summary: debtToEquity < 0.3
-        ? "빚이 거의 없어요"
+        ? "자본 대비 빚 부담이 적어요"
         : debtToEquity < 1
           ? "빚이 적당해요"
           : "빚이 많은 편이에요",
@@ -877,7 +877,7 @@ export async function GET(
       } else if (roe > 0.15) {
         sentences.push("돈은 잘 버는 편이에요.");
       } else if (debtToEquity < 0.3) {
-        sentences.push("빚이 거의 없어서 재무가 안정적이에요.");
+        sentences.push("자본 대비 빚 부담이 적어서 재무가 안정적이에요.");
       } else if (debtToEquity > 1) {
         sentences.push("빚이 많은 편이라 재무 건전성에 주의가 필요해요.");
       } else {
