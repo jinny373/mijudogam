@@ -266,6 +266,26 @@ export async function GET(
       };
     }).reverse();
 
+    // 🆕 최신 분기 흑자/적자 체크 (연간 데이터와 별도)
+    const latestQuarterNetIncome = quarterlyTrend.length > 0 
+      ? quarterlyTrend[quarterlyTrend.length - 1].netIncome 
+      : null;
+    const latestQuarterOperatingIncome = quarterlyTrend.length > 0 
+      ? quarterlyTrend[quarterlyTrend.length - 1].operatingIncome 
+      : null;
+    const prevQuarterNetIncome = quarterlyTrend.length > 1 
+      ? quarterlyTrend[quarterlyTrend.length - 2].netIncome 
+      : null;
+    
+    // 연간은 적자지만 최신 분기는 흑자인 경우 (턴어라운드)
+    const isAnnualLoss = netIncomeCurrentYear < 0;
+    const isLatestQuarterProfit = latestQuarterNetIncome !== null && latestQuarterNetIncome > 0;
+    const isLatestQuarterOperatingProfit = latestQuarterOperatingIncome !== null && latestQuarterOperatingIncome > 0;
+    const isTurnaroundInProgress = isAnnualLoss && isLatestQuarterProfit;
+    
+    // 최신 분기 흑자 전환 (이전 분기 적자 → 이번 분기 흑자)
+    const justTurnedProfitThisQuarter = prevQuarterNetIncome !== null && prevQuarterNetIncome < 0 && isLatestQuarterProfit;
+
     const isLossCompany = netIncomeCurrentYear < 0;
     const isNegativePER = per < 0;
     const isNegativeOCF = ocfFromHistory < 0;
@@ -273,8 +293,15 @@ export async function GET(
 
     // 💰 돈 버는 능력 (현금흐름 추가!)
     // summary와 statusText 기준 통일: ROE 15% 이상이면 "우수"
+    // 🆕 최신 분기 턴어라운드 반영
     const getEarningSummary = () => {
       if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계 기업이에요";
+      
+      // 🆕 턴어라운드 케이스: 연간 적자지만 최신 분기 흑자
+      if (isTurnaroundInProgress) {
+        return "연간으로는 적자지만, 최신 분기에 흑자 전환했어요! 🎉";
+      }
+      
       if (isNegativeOCF) return "장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요";
       if (roe > 0.15) return "돈을 잘 벌고 있어요";
       if (roe > 0.05) return "돈을 적당히 벌고 있어요";
@@ -286,14 +313,19 @@ export async function GET(
       id: "earning",
       title: "돈 버는 능력",
       emoji: "💰",
+      // 🆕 턴어라운드 케이스: 연간 적자여도 최신 분기 흑자면 yellow (희망적)
       status: isPreRevenueCompany 
         ? "yellow" 
-        : (isNegativeOCF ? "red" : getStatus(roe, { good: 0.15, bad: 0.05 }, true)),
+        : isTurnaroundInProgress
+          ? "yellow"  // 턴어라운드 중 = 노란불 (지켜봐야 함)
+          : (isNegativeOCF ? "red" : getStatus(roe, { good: 0.15, bad: 0.05 }, true)),
       statusText: isPreRevenueCompany 
         ? "연구개발 단계" 
-        : isNegativeOCF
-          ? "현금흐름 주의"
-          : (roe > 0.15 ? "우수" : roe > 0.05 ? "보통" : "주의"),
+        : isTurnaroundInProgress
+          ? "흑자 전환 중 🎉"
+          : isNegativeOCF
+            ? "현금흐름 주의"
+            : (roe > 0.15 ? "우수" : roe > 0.05 ? "보통" : "주의"),
       summary: getEarningSummary(),
       mainValue: formatPercentNoSign(roe, "데이터 없음"),
       mainLabel: "ROE",
@@ -818,11 +850,21 @@ export async function GET(
       } else if (revenueGrowthValue < -0.1) {
         sentences.push(`매출이 감소하고 있어요 (${formatPercent(revenueGrowthValue)}).`);
       } else {
-        sentences.push("매출 성장이 정체 상태예요.");
+        // 🆕 연간 성장률이 없거나 정체인데, 분기 성장률이 있으면 그걸 사용
+        if (latestQoQGrowth !== null && latestQoQGrowth > 0.1) {
+          sentences.push(`최근 분기 매출이 빠르게 성장 중이에요 (전분기 대비 ${formatPercent(latestQoQGrowth)}).`);
+        } else if (quarterlyYoYGrowth !== null && quarterlyYoYGrowth > 0.1) {
+          sentences.push(`최근 분기 매출이 성장 중이에요 (전년 동기 대비 ${formatPercent(quarterlyYoYGrowth)}).`);
+        } else {
+          sentences.push("매출 성장이 정체 상태예요.");
+        }
       }
       
       // 2문장: 수익성 + 재무 건전성
-      if (isLossCompany) {
+      // 🆕 턴어라운드 케이스 우선 처리
+      if (isTurnaroundInProgress) {
+        sentences.push("연간으로는 적자지만, 최신 분기에 흑자로 돌아섰어요! 턴어라운드 기대됩니다.");
+      } else if (isLossCompany) {
         if (debtToEquity < 0.5) {
           sentences.push("아직 적자지만, 빚이 적어서 버틸 여력은 있어요.");
         } else {
@@ -843,7 +885,10 @@ export async function GET(
       }
       
       // 3문장: 밸류에이션 (가격)
-      if (isNegativePER) {
+      // 🆕 턴어라운드 기업은 PER 언급 다르게
+      if (isTurnaroundInProgress) {
+        sentences.push("흑자 전환 초기라 가격 판단은 조금 더 지켜봐야 해요.");
+      } else if (isNegativePER) {
         sentences.push("적자라서 PER로 가격을 판단하기 어려워요.");
       } else if (per > 60) {
         sentences.push("PER이 매우 높아서 가격 부담이 있어요.");
@@ -859,12 +904,16 @@ export async function GET(
     };
 
     // 좋은점 / 주의점 생성
+    // 🆕 턴어라운드 반영
     const generatePros = () => {
       const pros = [];
+      if (isTurnaroundInProgress) pros.push("🎉 최신 분기 흑자 전환 성공!");
       if (roe > 0.15) pros.push(`ROE ${formatPercentNoSign(roe)}로 수익성 우수`);
       if (ocfFromHistory > 0) pros.push(`영업현금흐름 ${formatCurrency(ocfFromHistory)}으로 현금 창출력 양호`);
       if (debtToEquity < 0.5) pros.push(`부채비율 ${formatPercentNoSign(debtToEquity)}로 재무 건전`);
       if (!isPreRevenueCompany && revenueGrowthValue > 0.15) pros.push(`매출 성장률 ${formatPercent(revenueGrowthValue)}로 고성장`);
+      // 🆕 분기 성장률도 체크
+      if (latestQoQGrowth !== null && latestQoQGrowth > 0.2) pros.push(`최근 분기 매출 ${formatPercent(latestQoQGrowth)} 급성장`);
       if (earningsGrowthValue > 1) pros.push(`순이익 ${formatPercent(earningsGrowthValue)} 급증`);
       if (profitMargin > 0.1) pros.push(`순이익률 ${formatPercentNoSign(profitMargin)}로 마진 우수`);
       if (currentRatio > 5) pros.push(`유동비율 ${formatRatio(currentRatio)}로 현금 풍부`);
@@ -875,7 +924,8 @@ export async function GET(
     const generateCons = () => {
       const cons = [];
       if (isNegativeOCF) cons.push(`⚠️ 영업현금흐름 적자 (${formatCurrency(ocfFromHistory)})`);
-      if (isLossCompany) cons.push("현재 적자 상태");
+      // 🆕 턴어라운드 중이면 "적자"라고 단정하지 않음
+      if (isLossCompany && !isTurnaroundInProgress) cons.push("현재 적자 상태");
       if (isPreRevenueCompany) cons.push("아직 매출 없는 연구개발 단계");
       if (!isNegativePER && per > 60) cons.push(`PER ${formatRatio(per)}로 가격 부담 있음`);
       if (debtToEquity > 1) cons.push(`부채비율 ${formatPercentNoSign(debtToEquity)}로 빚 많음`);
@@ -891,12 +941,19 @@ export async function GET(
       pros: generatePros(),
       cons: generateCons(),
       metrics: [earningPower, debtManagement, growthPotential, valuation],
+      // 🆕 턴어라운드 정보 추가
+      turnaroundInfo: isTurnaroundInProgress ? {
+        isInProgress: true,
+        latestQuarterNetIncome: latestQuarterNetIncome,
+        annualNetIncome: netIncomeCurrentYear,
+        message: "연간 적자지만 최신 분기 흑자 전환!"
+      } : null,
       // 데이터 출처 면책 (강화)
       dataSource: {
         provider: "Yahoo Finance API",
-        note: "최신 분기 실적이 반영되지 않았을 수 있어요",
-        lastUpdated: latestFiscalYear ? `${latestFiscalYear}년 기준` : "최근 12개월",
-        disclaimer: "정확한 정보는 기업 IR 자료를 확인하세요",
+        note: "⚠️ 연간 데이터 기준이며, 최신 분기와 다를 수 있어요",
+        lastUpdated: latestFiscalYear ? `${latestFiscalYear}년 연간 기준` : "최근 12개월",
+        disclaimer: "투자 전 기업 IR 자료와 최신 분기 실적을 꼭 확인하세요",
       },
     };
 
