@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Search, Loader2, X, Clock } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { trackSearch } from '@/lib/analytics'
 
 const popularStocks = [
   { ticker: "NVDA", name: "엔비디아" },
@@ -450,6 +451,7 @@ export function StockSearchForm() {
     setIsLoading(true)
     setShowDropdown(false)
     setQuery("")
+  trackSearch(ticker)
     // 최근 본 종목에 저장
     const stockName = name || koreanStockMap[ticker] || ticker
     saveRecentStock(ticker, stockName)
