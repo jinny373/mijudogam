@@ -7,7 +7,7 @@ import { ArrowLeft, Share2, ThumbsUp, ThumbsDown, TrendingUp, Landmark, Rocket, 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { isInWatchlist, toggleWatchlist } from "@/lib/watchlist"
+import { isInWatchlist, toggleWatchlist, logWatchlistEvent } from "@/lib/watchlist"
 
 // 최근 본 종목 저장 (localStorage)
 const RECENT_STOCKS_KEY = "mijudogam_recent_stocks"
@@ -313,7 +313,15 @@ export default function StockDetailPage() {
               const Icon = iconMap[metric.id] || TrendingUp
               
               return (
-                <Link key={i} href={`/stock/${stockData.ticker}/metric/${metric.id}`}>
+                <Link 
+                  key={i} 
+                  href={`/stock/${stockData.ticker}/metric/${metric.id}`}
+                  onClick={() => logWatchlistEvent("metric_card_click", { 
+                    ticker: stockData.ticker, 
+                    metric_id: metric.id,
+                    metric_title: metric.title 
+                  })}
+                >
                   <Card className="p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
                     <div className="flex items-center justify-between mb-2">
                       <div className={`p-2 rounded-lg ${colors.light}`}>
@@ -347,7 +355,10 @@ export default function StockDetailPage() {
                 variant={feedback === "up" ? "default" : "outline"}
                 size="lg"
                 className={`rounded-full px-6 ${feedback === "up" ? "bg-primary" : ""}`}
-                onClick={() => setFeedback("up")}
+                onClick={() => {
+                  setFeedback("up")
+                  logWatchlistEvent("feedback_up", { ticker: stockData.ticker })
+                }}
               >
                 <ThumbsUp className="h-5 w-5 mr-2" />
                 좋아요
@@ -356,7 +367,10 @@ export default function StockDetailPage() {
                 variant={feedback === "down" ? "default" : "outline"}
                 size="lg"
                 className={`rounded-full px-6 ${feedback === "down" ? "bg-muted-foreground" : ""}`}
-                onClick={() => setFeedback("down")}
+                onClick={() => {
+                  setFeedback("down")
+                  logWatchlistEvent("feedback_down", { ticker: stockData.ticker })
+                }}
               >
                 <ThumbsDown className="h-5 w-5 mr-2" />
                 아쉬워요

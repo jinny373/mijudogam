@@ -1,4 +1,6 @@
 // 관심종목 유틸리티
+import { supabase } from "./supabase"
+
 const WATCHLIST_KEY = "mijudogam_watchlist"
 const MAX_WATCHLIST = 20
 
@@ -8,8 +10,8 @@ export interface WatchlistItem {
   addedAt: number
 }
 
-// 이벤트 로깅 (콘솔 + 나중에 분석용으로 확장 가능)
-export const logWatchlistEvent = (event: string, data?: Record<string, any>) => {
+// 이벤트 로깅 (Supabase events 테이블에 저장)
+export const logWatchlistEvent = async (event: string, data?: Record<string, any>) => {
   const logData = {
     event,
     timestamp: new Date().toISOString(),
@@ -17,8 +19,16 @@ export const logWatchlistEvent = (event: string, data?: Record<string, any>) => 
   }
   console.log("[Watchlist Event]", logData)
   
-  // 나중에 분석 서비스 연동 시 여기에 추가
-  // analytics.track(event, data)
+  // Supabase events 테이블에 저장
+  try {
+    await supabase.from('events').insert({
+      event_name: event,
+      event_data: data || {},
+      page_path: typeof window !== 'undefined' ? window.location.pathname : null
+    })
+  } catch (error) {
+    console.error('Event logging error:', error)
+  }
 }
 
 // 관심종목 불러오기
@@ -43,7 +53,7 @@ export const addToWatchlist = (ticker: string, name: string): boolean => {
     const updated = [{ ticker, name, addedAt: Date.now() }, ...watchlist]
     localStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated))
     
-    logWatchlistEvent("watchlist_add", { ticker })
+    logWatchlistEvent("watchlist_add", { ticker, name })
     return true
   } catch {
     return false
