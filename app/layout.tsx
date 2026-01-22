@@ -3,6 +3,7 @@ import Script from 'next/script'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import PageViewTracker from '@/components/PageViewTracker'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -51,6 +52,7 @@ export default function RootLayout({
             gtag('config', 'G-86S8VWEK1T');
           `}
         </Script>
+        <PageViewTracker />
         {children}
         <Analytics />
       </body>
