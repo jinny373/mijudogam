@@ -9,9 +9,9 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const statusStyles = {
-  green: { badge: "bg-[#22C55E]/10 text-[#22C55E]", bar: "bg-[#22C55E]", dot: "🟢" },
-  yellow: { badge: "bg-[#EAB308]/10 text-[#EAB308]", bar: "bg-[#EAB308]", dot: "🟡" },
-  red: { badge: "bg-[#EF4444]/10 text-[#EF4444]", bar: "bg-[#EF4444]", dot: "🔴" },
+  green: { badge: "bg-[#22C55E]/10 text-[#22C55E]", bar: "bg-[#22C55E]", dot: "🟢", text: "text-[#22C55E]" },
+  yellow: { badge: "bg-[#EAB308]/10 text-[#EAB308]", bar: "bg-[#EAB308]", dot: "🟡", text: "text-[#EAB308]" },
+  red: { badge: "bg-[#EF4444]/10 text-[#EF4444]", bar: "bg-[#EF4444]", dot: "🔴", text: "text-[#EF4444]" },
 }
 
 function LoadingSkeleton() {
@@ -45,7 +45,6 @@ function ErrorState({ message, ticker }: { message: string; ticker: string }) {
               <span>뒤로가기</span>
             </Button>
           </Link>
-          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <span className="text-lg font-bold text-primary">미주도감</span>
           </Link>
@@ -61,6 +60,104 @@ function ErrorState({ message, ticker }: { message: string; ticker: string }) {
         </div>
       </main>
     </div>
+  )
+}
+
+// v9.22: 분기별 추이 카드 컴포넌트 (모바일 최적화)
+function QuarterlyTrendCard({ metric }: { metric: any }) {
+  const metricStyles = statusStyles[metric.status as keyof typeof statusStyles] || statusStyles.yellow
+  
+  // "분기별 매출 추이" 또는 "분기별" 포함된 카드인지 확인
+  const isQuarterlyTrend = metric.name?.includes("분기별")
+  
+  // benchmark에서 금액 파싱 (예: "$1.9B → $1.7B → $1.9B → $2.3B")
+  const parseQuarterlyData = () => {
+    if (!metric.benchmark || !metric.value) return null
+    
+    // value: "'24Q4 → '25Q1 → '25Q2 → '25Q3"
+    // benchmark: "$1.9B → $1.7B → $1.9B → $2.3B"
+    // interpretation: "성장률: -10% → +12% → +21%"
+    
+    const quarters = metric.value.split(' → ').map((q: string) => q.trim())
+    const values = metric.benchmark.split(' → ').map((v: string) => v.trim())
+    
+    // interpretation에서 성장률 파싱
+    let growthRates: string[] = []
+    if (metric.interpretation?.includes('성장률:')) {
+      const growthPart = metric.interpretation.replace('성장률:', '').trim()
+      growthRates = growthPart.split(' → ').map((g: string) => g.trim())
+    }
+    
+    if (quarters.length !== values.length) return null
+    
+    return quarters.map((quarter: string, i: number) => ({
+      quarter,
+      value: values[i],
+      growth: growthRates[i] || null,
+    }))
+  }
+  
+  const quarterlyData = isQuarterlyTrend ? parseQuarterlyData() : null
+  
+  // 분기별 추이 카드 - 특별 UI
+  if (quarterlyData && quarterlyData.length > 0) {
+    return (
+      <Card className="p-4 rounded-xl border shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-foreground">{metric.name}</h3>
+          <span className={metricStyles.dot}></span>
+        </div>
+        
+        {metric.description && (
+          <p className="text-xs text-muted-foreground mb-4">{metric.description}</p>
+        )}
+        
+        {/* 분기별 데이터 그리드 */}
+        <div className="grid grid-cols-4 gap-2">
+          {quarterlyData.map((item: any, i: number) => {
+            // 성장률에 따른 색상
+            let growthColor = "text-muted-foreground"
+            if (item.growth) {
+              if (item.growth.startsWith('+')) growthColor = "text-[#22C55E]"
+              else if (item.growth.startsWith('-')) growthColor = "text-[#EF4444]"
+            }
+            
+            return (
+              <div key={i} className="text-center p-2 bg-muted/30 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1">{item.quarter}</div>
+                <div className="text-sm font-bold text-foreground">{item.value}</div>
+                {item.growth && (
+                  <div className={`text-xs font-medium mt-1 ${growthColor}`}>
+                    {item.growth}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </Card>
+    )
+  }
+  
+  // 일반 카드 UI
+  return (
+    <Card className="p-4 rounded-xl border shadow-sm">
+      <div className="flex items-start justify-between mb-1">
+        <h3 className="text-sm font-medium text-foreground">{metric.name}</h3>
+        <span className={`text-lg font-bold ${metricStyles.text}`}>
+          {metric.value} {metricStyles.dot}
+        </span>
+      </div>
+      {metric.description && (
+        <p className="text-xs text-muted-foreground mb-2">{metric.description}</p>
+      )}
+      <div className="flex flex-col gap-1 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">{metric.benchmark || metric.average}</span>
+          <span className="text-foreground font-medium">{metric.interpretation}</span>
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -109,7 +206,7 @@ export default function MetricDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - v9.21: 로고 추가 */}
+      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Link href={`/stock/${ticker}`}>
@@ -118,7 +215,6 @@ export default function MetricDetailPage() {
               <span>{data.stockName}</span>
             </Button>
           </Link>
-          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <span className="text-lg font-bold text-primary">미주도감</span>
           </Link>
@@ -144,6 +240,9 @@ export default function MetricDetailPage() {
             📌 한줄 요약
           </h2>
           <p className="text-foreground font-medium">{data.summary}</p>
+          {data.dataYear && (
+            <p className="text-xs text-muted-foreground mt-2">📅 {data.dataYear}</p>
+          )}
         </Card>
 
         {/* Key Metrics */}
@@ -152,29 +251,9 @@ export default function MetricDetailPage() {
             📊 핵심 숫자
           </h2>
           <div className="space-y-3">
-            {data.metrics?.map((metric: any, i: number) => {
-              const metricStyles = statusStyles[metric.status as keyof typeof statusStyles] || statusStyles.yellow
-              
-              return (
-                <Card key={i} className="p-4 rounded-xl border shadow-sm">
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="text-sm font-medium text-foreground">{metric.name}</h3>
-                    <span className={`text-lg font-bold ${metricStyles.bar.replace("bg-", "text-")}`}>
-                      {metric.value} {metricStyles.dot}
-                    </span>
-                  </div>
-                  {metric.description && (
-                    <p className="text-xs text-muted-foreground mb-2">{metric.description}</p>
-                  )}
-                  <div className="flex flex-col gap-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">{metric.benchmark || metric.average}</span>
-                      <span className="text-foreground font-medium">{metric.interpretation}</span>
-                    </div>
-                  </div>
-                </Card>
-              )
-            })}
+            {data.metrics?.map((metric: any, i: number) => (
+              <QuarterlyTrendCard key={i} metric={metric} />
+            ))}
           </div>
         </section>
 
