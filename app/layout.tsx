@@ -35,7 +35,7 @@ export const metadata: Metadata = {
         type: 'image/svg+xml',
       },
     ],
-    apple: '/icons/icon-192.svg',
+    apple: '/icons/icon-192.png',
   },
 }
 
