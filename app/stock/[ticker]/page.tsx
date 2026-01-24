@@ -299,13 +299,8 @@ export default function StockDetailPage() {
   const handleToggleWatchlist = () => {
     if (!stockData) return
     
-    const newState = toggleWatchlist({
-      ticker: stockData.ticker,
-      name: stockData.name,
-      price: stockData.price,
-      change: stockData.change,
-      changePercent: stockData.changePercent,
-    })
+    // toggleWatchlist(ticker, name) - 두 개의 문자열 인자
+    const newState = toggleWatchlist(stockData.ticker, stockData.name)
     setIsWatchlisted(newState)
     
     logWatchlistEvent(newState ? "watchlist_add" : "watchlist_remove", { 
