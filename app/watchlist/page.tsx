@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Heart, Pencil, X, Loader2, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,42 +13,20 @@ const statusDots: Record<string, string> = {
   red: "🔴",
 }
 
-interface StockData {
-  ticker: string
-  name: string
-  price: number | { raw?: number; fmt?: string }
-  change: number | { raw?: number; fmt?: string }
-  changePercent: number | { raw?: number; fmt?: string }
-  aiSummary: string
-  metrics: {
-    id: string
-    title: string
-    status: string
-    statusText: string
-    mainValue: string
-    mainLabel: string
-    summary: string
-  }[]
-}
-
-// 안전하게 문자열로 변환
-const safeString = (value: any): string => {
-  if (value === null || value === undefined) return "-"
+// 안전하게 문자열로 변환 (객체면 빈 문자열 반환)
+const safeRender = (value: any): string => {
+  if (value === null || value === undefined) return ""
   if (typeof value === "string") return value
   if (typeof value === "number") return String(value)
-  if (typeof value === "object") {
-    // Yahoo Finance 형태: { raw: 123.45, fmt: "123.45" }
-    if (value.fmt) return String(value.fmt)
-    if (value.raw !== undefined) return String(value.raw)
-    return "-"
-  }
-  return "-"
+  if (typeof value === "boolean") return String(value)
+  // 객체나 배열이면 빈 문자열
+  return ""
 }
 
 export default function WatchlistPage() {
   const router = useRouter()
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([])
-  const [stockData, setStockData] = useState<Record<string, StockData>>({})
+  const [stockData, setStockData] = useState<Record<string, any>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
 
@@ -68,7 +45,7 @@ export default function WatchlistPage() {
       }
 
       setIsLoading(true)
-      const data: Record<string, StockData> = {}
+      const data: Record<string, any> = {}
 
       await Promise.all(
         watchlist.map(async (item) => {
@@ -78,8 +55,8 @@ export default function WatchlistPage() {
               const json = await res.json()
               data[item.ticker] = json
             }
-          } catch {
-            // 에러 무시
+          } catch (e) {
+            console.error(`Error fetching ${item.ticker}:`, e)
           }
         })
       )
@@ -107,16 +84,16 @@ export default function WatchlistPage() {
   // 지표 가져오기
   const getMetric = (ticker: string, metricId: string) => {
     const data = stockData[ticker]
-    if (!data) return null
-    return data.metrics?.find((m) => m.id === metricId)
+    if (!data || !data.metrics) return null
+    return data.metrics.find((m: any) => m.id === metricId)
   }
 
   // 지표 정보
   const metricInfo = [
-    { id: "earning", emoji: "💰", name: "수익성", desc: "돈 버는 능력" },
-    { id: "debt", emoji: "🏦", name: "안정성", desc: "빚 관리" },
-    { id: "growth", emoji: "🚀", name: "성장성", desc: "성장 가능성" },
-    { id: "valuation", emoji: "💎", name: "가치", desc: "현재 몸값" },
+    { id: "earning", emoji: "💰", name: "수익성" },
+    { id: "debt", emoji: "🏦", name: "안정성" },
+    { id: "growth", emoji: "🚀", name: "성장성" },
+    { id: "valuation", emoji: "💎", name: "가치" },
   ]
 
   return (
@@ -168,12 +145,14 @@ export default function WatchlistPage() {
             {/* 종목 카드들 */}
             {watchlist.map((item) => {
               const data = stockData[item.ticker]
-              // aiSummary를 안전하게 문자열로 변환
-              const aiSummaryText = data?.aiSummary ? safeString(data.aiSummary) : null
+              
+              // 안전하게 문자열 추출
+              const stockName = safeRender(data?.name) || safeRender(item.name) || item.ticker
+              const aiSummary = safeRender(data?.aiSummary)
 
               return (
                 <div key={item.ticker} className="relative">
-                  {/* 편집 모드: 삭제 버튼 (카드 바깥) */}
+                  {/* 편집 모드: 삭제 버튼 */}
                   {isEditMode && (
                     <button
                       onClick={() => handleRemove(item.ticker)}
@@ -195,7 +174,7 @@ export default function WatchlistPage() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-primary">{item.ticker}</span>
-                        <span className="text-sm text-foreground">{safeString(item.name)}</span>
+                        <span className="text-sm text-foreground">{stockName}</span>
                       </div>
                       {!isEditMode && (
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -203,9 +182,9 @@ export default function WatchlistPage() {
                     </div>
 
                     {/* 한 줄 요약 */}
-                    {aiSummaryText && aiSummaryText !== "-" && (
+                    {aiSummary && (
                       <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
-                        {aiSummaryText}
+                        {aiSummary}
                       </p>
                     )}
 
@@ -213,9 +192,8 @@ export default function WatchlistPage() {
                     <div className="grid grid-cols-2 gap-2">
                       {metricInfo.map((info) => {
                         const metric = getMetric(item.ticker, info.id)
-                        const status = metric?.status || "yellow"
-                        // summary 사용 (핵심체크 문장) - 안전하게 변환
-                        const summaryText = safeString(metric?.summary)
+                        const status = safeRender(metric?.status) || "yellow"
+                        const summary = safeRender(metric?.summary) || "-"
 
                         return (
                           <div 
@@ -231,7 +209,7 @@ export default function WatchlistPage() {
                                 <span>{statusDots[status] || "➖"}</span>
                               </div>
                               <p className="text-xs text-muted-foreground truncate">
-                                {summaryText}
+                                {summary}
                               </p>
                             </div>
                           </div>
