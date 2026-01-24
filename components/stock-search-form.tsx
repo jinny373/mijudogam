@@ -345,6 +345,11 @@ const koreanStockMap: Record<string, string> = {
   "노던오일앤가스": "NOG",
   "노던트러스트": "NTRS",
   "노던다이너스티미네랄스": "NAK",
+  
+  // ===== v9.22: 추가 종목 =====
+  "온다스홀딩스": "ONDS",
+  "온다스": "ONDS",
+  "사이퍼마이닝": "CIFR",
 }
 
 // ===== v9.20: 검색용 별칭 (줄임말, 오타 등) =====
@@ -446,7 +451,11 @@ interface SearchResult {
   type: string
 }
 
-export function StockSearchForm() {
+interface StockSearchFormProps {
+  autoFocus?: boolean
+}
+
+export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -458,6 +467,13 @@ export function StockSearchForm() {
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // autoFocus prop이 true면 검색창에 포커스
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [autoFocus])
 
   // 최근 본 종목 불러오기 (클라이언트에서만)
   useEffect(() => {

@@ -1,9 +1,16 @@
+"use client"
+
+import { useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Heart } from "lucide-react"
 import { StockSearchForm } from "@/components/stock-search-form"
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams()
+  const shouldFocusSearch = searchParams.get("focus") === "search"
+
   return (
     <main className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -45,9 +52,21 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Search Form */}
-        <StockSearchForm />
+        {/* Search Form - autoFocus prop 전달 */}
+        <StockSearchForm autoFocus={shouldFocusSearch} />
       </div>
     </main>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="text-2xl font-bold text-primary">미주도감</div>
+      </main>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }
