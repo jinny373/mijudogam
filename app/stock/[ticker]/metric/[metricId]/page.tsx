@@ -63,25 +63,33 @@ function ErrorState({ message, ticker }: { message: string; ticker: string }) {
   )
 }
 
-// v9.22: 분기별 추이 카드 컴포넌트 (모바일 최적화)
+// v9.22: 분기별 추이 카드 컴포넌트 (메인 페이지와 일관성 있게)
 function QuarterlyTrendCard({ metric }: { metric: any }) {
   const metricStyles = statusStyles[metric.status as keyof typeof statusStyles] || statusStyles.yellow
   
-  // "분기별 매출 추이" 또는 "분기별" 포함된 카드인지 확인
   const isQuarterlyTrend = metric.name?.includes("분기별")
   
-  // benchmark에서 금액 파싱 (예: "$1.9B → $1.7B → $1.9B → $2.3B")
+  // 분기 → 기간 변환 (예: '25Q3 → "25.7.1~9.30")
+  const getQuarterPeriod = (q: string) => {
+    const match = q.match(/'?(\d{2})Q(\d)/)
+    if (!match) return null
+    const year = match[1]
+    const quarter = parseInt(match[2])
+    const periods: Record<number, string> = {
+      1: `${year}.1.1~3.31`,
+      2: `${year}.4.1~6.30`,
+      3: `${year}.7.1~9.30`,
+      4: `${year}.10.1~12.31`,
+    }
+    return periods[quarter] || null
+  }
+  
   const parseQuarterlyData = () => {
     if (!metric.benchmark || !metric.value) return null
-    
-    // value: "'24Q4 → '25Q1 → '25Q2 → '25Q3"
-    // benchmark: "$1.9B → $1.7B → $1.9B → $2.3B"
-    // interpretation: "성장률: +24% → +28% → +29%" (3개 - 첫 분기는 비교대상 없음)
     
     const quarters = metric.value.split(' → ').map((q: string) => q.trim())
     const values = metric.benchmark.split(' → ').map((v: string) => v.trim())
     
-    // interpretation에서 성장률 파싱
     let growthRates: string[] = []
     if (metric.interpretation?.includes('성장률:')) {
       const growthPart = metric.interpretation.replace('성장률:', '').trim()
@@ -90,24 +98,43 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
     
     if (quarters.length !== values.length) return null
     
-    // 성장률은 두 번째 분기부터 적용 (첫 분기는 비교 대상 없음)
-    return quarters.map((quarter: string, i: number) => ({
-      quarter,
-      value: values[i],
-      // 첫 번째 분기(i=0)는 성장률 없음, 두 번째부터 growthRates[i-1] 적용
-      growth: i > 0 && growthRates[i - 1] ? growthRates[i - 1] : null,
-    }))
+    const latestGrowth = growthRates.length > 0 ? growthRates[growthRates.length - 1] : null
+    const latestQuarter = quarters[quarters.length - 1]
+    const periodLabel = getQuarterPeriod(latestQuarter)
+    
+    return {
+      items: quarters.map((quarter: string, i: number) => ({
+        quarter,
+        value: values[i],
+        growth: growthRates[i] || null,
+      })),
+      latestGrowth,
+      periodLabel,
+    }
   }
   
-  const quarterlyData = isQuarterlyTrend ? parseQuarterlyData() : null
+  const parsedData = isQuarterlyTrend ? parseQuarterlyData() : null
   
-  // 분기별 추이 카드 - 특별 UI
-  if (quarterlyData && quarterlyData.length > 0) {
+  // 분기별 추이 카드 - 메인 페이지와 일관성 있는 UI
+  if (parsedData && parsedData.items.length > 0) {
+    const { items, latestGrowth, periodLabel } = parsedData
+    
+    let latestGrowthColor = "text-[#22C55E]"
+    if (latestGrowth) {
+      if (latestGrowth.startsWith('-')) latestGrowthColor = "text-[#EF4444]"
+      else if (latestGrowth === '0%' || latestGrowth === '+0%') latestGrowthColor = "text-[#EAB308]"
+    }
+    
     return (
       <Card className="p-4 rounded-xl border shadow-sm">
+        {/* 헤더: 제목 + 최신 성장률 */}
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-foreground">{metric.name}</h3>
-          <span className={metricStyles.dot}></span>
+          {latestGrowth && (
+            <span className={`text-lg font-bold ${latestGrowthColor} flex items-center gap-1`}>
+              {latestGrowth} {metricStyles.dot}
+            </span>
+          )}
         </div>
         
         {metric.description && (
@@ -115,9 +142,8 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
         )}
         
         {/* 분기별 데이터 그리드 */}
-        <div className="grid grid-cols-4 gap-2">
-          {quarterlyData.map((item: any, i: number) => {
-            // 성장률에 따른 색상
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {items.map((item: any, i: number) => {
             let growthColor = "text-muted-foreground"
             if (item.growth) {
               if (item.growth.startsWith('+')) growthColor = "text-[#22C55E]"
@@ -133,12 +159,20 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
                     {item.growth}
                   </div>
                 ) : (
-                  <div className="text-xs mt-1 text-transparent">-</div>
+                  <div className="text-xs mt-1 text-transparent select-none">-</div>
                 )}
               </div>
             )
           })}
         </div>
+        
+        {/* 하단: 기준 기간 */}
+        {periodLabel && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t">
+            <span>📅</span>
+            <span>{periodLabel}</span>
+          </div>
+        )}
       </Card>
     )
   }
