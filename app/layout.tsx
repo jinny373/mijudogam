@@ -1,9 +1,10 @@
 import React from "react"
 import Script from 'next/script'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import PageViewTracker from '@/components/PageViewTracker'
+import { PWARegister } from '@/components/pwa-register'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -13,6 +14,12 @@ export const metadata: Metadata = {
   title: '미주도감 - 미국 주식 AI 분석 서비스',
   description: 'AI가 미국 주식을 쉽게 해석해드립니다. 종목 분석, 투자 인사이트를 한눈에.',
   generator: 'v0.app',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '미주도감',
+  },
   icons: {
     icon: [
       {
@@ -28,8 +35,12 @@ export const metadata: Metadata = {
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/icons/icon-192.svg',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#2563eb',
 }
 
 export default function RootLayout({
@@ -53,6 +64,7 @@ export default function RootLayout({
           `}
         </Script>
         <PageViewTracker />
+        <PWARegister />
         {children}
         <Analytics />
       </body>
