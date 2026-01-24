@@ -1121,12 +1121,155 @@ export async function GET(
       return cons.slice(0, 3);
     };
 
+    // v9.22: 관련 종목 추천 (섹터/업종 기반)
+    const getRelatedStocks = () => {
+      const currentSector = basicInfo.sector;
+      const currentIndustry = basicInfo.industry;
+      const currentTicker = symbol;
+      
+      // 섹터/업종별 인기 종목 매핑
+      const sectorStocks: Record<string, { ticker: string; name: string; reason: string }[]> = {
+        "Technology": [
+          { ticker: "AAPL", name: "Apple", reason: "빅테크 대장주" },
+          { ticker: "MSFT", name: "Microsoft", reason: "클라우드 & AI 강자" },
+          { ticker: "NVDA", name: "NVIDIA", reason: "AI 반도체 1위" },
+          { ticker: "GOOGL", name: "Alphabet", reason: "검색 & 광고 독점" },
+          { ticker: "META", name: "Meta", reason: "SNS & 메타버스" },
+          { ticker: "AMZN", name: "Amazon", reason: "이커머스 & AWS" },
+          { ticker: "TSM", name: "TSMC", reason: "반도체 파운드리 1위" },
+          { ticker: "AVGO", name: "Broadcom", reason: "AI 네트워크 칩" },
+          { ticker: "AMD", name: "AMD", reason: "CPU & GPU 경쟁자" },
+          { ticker: "ORCL", name: "Oracle", reason: "클라우드 인프라" },
+        ],
+        "Communication Services": [
+          { ticker: "GOOGL", name: "Alphabet", reason: "유튜브 & 검색" },
+          { ticker: "META", name: "Meta", reason: "인스타 & 왓츠앱" },
+          { ticker: "NFLX", name: "Netflix", reason: "스트리밍 1위" },
+          { ticker: "DIS", name: "Disney", reason: "콘텐츠 제국" },
+          { ticker: "TMUS", name: "T-Mobile", reason: "통신 3위" },
+        ],
+        "Consumer Cyclical": [
+          { ticker: "AMZN", name: "Amazon", reason: "이커머스 왕" },
+          { ticker: "TSLA", name: "Tesla", reason: "전기차 선두" },
+          { ticker: "HD", name: "Home Depot", reason: "홈인테리어 1위" },
+          { ticker: "NKE", name: "Nike", reason: "스포츠웨어 1위" },
+          { ticker: "SBUX", name: "Starbucks", reason: "커피 체인 1위" },
+          { ticker: "MCD", name: "McDonald's", reason: "패스트푸드 1위" },
+        ],
+        "Financial Services": [
+          { ticker: "JPM", name: "JPMorgan", reason: "미국 최대 은행" },
+          { ticker: "V", name: "Visa", reason: "결제 네트워크 1위" },
+          { ticker: "MA", name: "Mastercard", reason: "결제 네트워크 2위" },
+          { ticker: "BAC", name: "Bank of America", reason: "미국 2위 은행" },
+          { ticker: "GS", name: "Goldman Sachs", reason: "투자은행 명가" },
+        ],
+        "Healthcare": [
+          { ticker: "UNH", name: "UnitedHealth", reason: "헬스케어 1위" },
+          { ticker: "JNJ", name: "Johnson & Johnson", reason: "제약 & 의료기기" },
+          { ticker: "LLY", name: "Eli Lilly", reason: "비만치료제 강자" },
+          { ticker: "PFE", name: "Pfizer", reason: "글로벌 제약사" },
+          { ticker: "ABBV", name: "AbbVie", reason: "바이오 제약" },
+        ],
+        "Consumer Defensive": [
+          { ticker: "WMT", name: "Walmart", reason: "유통 1위" },
+          { ticker: "PG", name: "Procter & Gamble", reason: "생활용품 1위" },
+          { ticker: "COST", name: "Costco", reason: "창고형 마트" },
+          { ticker: "KO", name: "Coca-Cola", reason: "음료 1위" },
+          { ticker: "PEP", name: "PepsiCo", reason: "음료 & 스낵" },
+        ],
+        "Energy": [
+          { ticker: "XOM", name: "Exxon Mobil", reason: "석유 메이저" },
+          { ticker: "CVX", name: "Chevron", reason: "에너지 대장주" },
+          { ticker: "COP", name: "ConocoPhillips", reason: "석유 생산" },
+          { ticker: "SLB", name: "Schlumberger", reason: "유전 서비스" },
+        ],
+        "Industrials": [
+          { ticker: "CAT", name: "Caterpillar", reason: "건설장비 1위" },
+          { ticker: "BA", name: "Boeing", reason: "항공기 제조" },
+          { ticker: "UPS", name: "UPS", reason: "물류 대장주" },
+          { ticker: "HON", name: "Honeywell", reason: "산업 자동화" },
+          { ticker: "GE", name: "GE Aerospace", reason: "항공 엔진" },
+        ],
+        "Utilities": [
+          { ticker: "NEE", name: "NextEra Energy", reason: "신재생에너지 1위" },
+          { ticker: "DUK", name: "Duke Energy", reason: "전력 유틸리티" },
+          { ticker: "SO", name: "Southern Company", reason: "남부 전력" },
+        ],
+        "Real Estate": [
+          { ticker: "AMT", name: "American Tower", reason: "통신 타워 리츠" },
+          { ticker: "PLD", name: "Prologis", reason: "물류 창고 리츠" },
+          { ticker: "EQIX", name: "Equinix", reason: "데이터센터 리츠" },
+        ],
+        "Basic Materials": [
+          { ticker: "LIN", name: "Linde", reason: "산업가스 1위" },
+          { ticker: "APD", name: "Air Products", reason: "수소 & 가스" },
+          { ticker: "FCX", name: "Freeport-McMoRan", reason: "구리 채굴" },
+        ],
+      };
+      
+      // 특정 종목 연관 매핑 (업종/경쟁사 기반)
+      const specificRelations: Record<string, { ticker: string; name: string; reason: string }[]> = {
+        "NVDA": [
+          { ticker: "AMD", name: "AMD", reason: "GPU 경쟁사" },
+          { ticker: "TSM", name: "TSMC", reason: "NVDA 칩 생산" },
+          { ticker: "AVGO", name: "Broadcom", reason: "AI 네트워크 칩" },
+          { ticker: "MRVL", name: "Marvell", reason: "데이터센터 반도체" },
+        ],
+        "AAPL": [
+          { ticker: "MSFT", name: "Microsoft", reason: "빅테크 라이벌" },
+          { ticker: "GOOGL", name: "Alphabet", reason: "스마트폰 OS 경쟁" },
+          { ticker: "QCOM", name: "Qualcomm", reason: "모바일 칩 공급" },
+        ],
+        "TSLA": [
+          { ticker: "RIVN", name: "Rivian", reason: "전기차 신생" },
+          { ticker: "LCID", name: "Lucid", reason: "프리미엄 EV" },
+          { ticker: "F", name: "Ford", reason: "전기차 진출" },
+          { ticker: "GM", name: "General Motors", reason: "전기차 전환 중" },
+        ],
+        "AMZN": [
+          { ticker: "SHOP", name: "Shopify", reason: "이커머스 플랫폼" },
+          { ticker: "WMT", name: "Walmart", reason: "유통 경쟁사" },
+          { ticker: "MSFT", name: "Microsoft", reason: "클라우드 경쟁 (Azure)" },
+        ],
+        "GOOGL": [
+          { ticker: "META", name: "Meta", reason: "광고 경쟁사" },
+          { ticker: "MSFT", name: "Microsoft", reason: "AI & 클라우드 경쟁" },
+          { ticker: "SNAP", name: "Snap", reason: "소셜 & 광고" },
+        ],
+        "MSFT": [
+          { ticker: "GOOGL", name: "Alphabet", reason: "클라우드 & AI 경쟁" },
+          { ticker: "CRM", name: "Salesforce", reason: "기업 소프트웨어" },
+          { ticker: "ORCL", name: "Oracle", reason: "클라우드 경쟁" },
+        ],
+        "META": [
+          { ticker: "GOOGL", name: "Alphabet", reason: "광고 경쟁" },
+          { ticker: "SNAP", name: "Snap", reason: "소셜미디어" },
+          { ticker: "PINS", name: "Pinterest", reason: "소셜 & 광고" },
+        ],
+      };
+      
+      // 1. 특정 종목 연관이 있으면 우선 사용
+      if (specificRelations[currentTicker]) {
+        return specificRelations[currentTicker]
+          .filter(s => s.ticker !== currentTicker)
+          .slice(0, 4);
+      }
+      
+      // 2. 같은 섹터 종목 추천
+      const sectorList = sectorStocks[currentSector] || sectorStocks["Technology"];
+      return sectorList
+        .filter(s => s.ticker !== currentTicker)
+        .slice(0, 4);
+    };
+
     const result = {
       ...basicInfo,
       aiSummary: generateAISummary(),
       pros: generatePros(),
       cons: generateCons(),
       metrics: [earningPower, debtManagement, growthPotential, valuation],
+      // v9.22: 관련 종목 추천
+      relatedStocks: getRelatedStocks(),
       // 🆕 턴어라운드 정보 추가
       turnaroundInfo: isTurnaroundInProgress ? {
         isInProgress: true,

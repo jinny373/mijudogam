@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -354,6 +354,34 @@ export default function MetricDetailPage() {
                 ))}
               </ul>
             </Card>
+          </section>
+        )}
+
+        {/* v9.22: 관련 종목 추천 */}
+        {data.relatedStocks && data.relatedStocks.length > 0 && (
+          <section className="pt-2">
+            <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+              🔗 함께 보면 좋은 종목
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {data.relatedStocks.map((stock: { ticker: string; name: string; reason: string }) => (
+                <Card 
+                  key={stock.ticker}
+                  className="p-3 rounded-xl border shadow-sm hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    window.location.href = `/stock/${stock.ticker}`
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-primary text-sm">{stock.ticker}</span>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {stock.reason}
+                  </p>
+                </Card>
+              ))}
+            </div>
           </section>
         )}
       </main>

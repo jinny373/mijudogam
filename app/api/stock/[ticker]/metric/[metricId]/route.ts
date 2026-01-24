@@ -494,7 +494,48 @@ export async function GET(
         return NextResponse.json({ error: "잘못된 지표입니다" }, { status: 400 });
     }
 
-    return NextResponse.json({ ticker: symbol, stockName, ...metricData });
+    // v9.22: 관련 종목 추천 (섹터 기반)
+    const profile = quoteSummary.summaryProfile;
+    const currentSector = profile?.sector || "Technology";
+    
+    const sectorStocks: Record<string, { ticker: string; name: string; reason: string }[]> = {
+      "Technology": [
+        { ticker: "AAPL", name: "Apple", reason: "빅테크 대장주" },
+        { ticker: "MSFT", name: "Microsoft", reason: "클라우드 & AI" },
+        { ticker: "NVDA", name: "NVIDIA", reason: "AI 반도체 1위" },
+        { ticker: "GOOGL", name: "Alphabet", reason: "검색 & 광고" },
+      ],
+      "Communication Services": [
+        { ticker: "GOOGL", name: "Alphabet", reason: "유튜브 & 검색" },
+        { ticker: "META", name: "Meta", reason: "SNS 플랫폼" },
+        { ticker: "NFLX", name: "Netflix", reason: "스트리밍 1위" },
+        { ticker: "DIS", name: "Disney", reason: "콘텐츠 제국" },
+      ],
+      "Consumer Cyclical": [
+        { ticker: "AMZN", name: "Amazon", reason: "이커머스 왕" },
+        { ticker: "TSLA", name: "Tesla", reason: "전기차 선두" },
+        { ticker: "HD", name: "Home Depot", reason: "홈인테리어 1위" },
+        { ticker: "NKE", name: "Nike", reason: "스포츠웨어" },
+      ],
+      "Financial Services": [
+        { ticker: "JPM", name: "JPMorgan", reason: "미국 최대 은행" },
+        { ticker: "V", name: "Visa", reason: "결제 네트워크" },
+        { ticker: "MA", name: "Mastercard", reason: "결제 2위" },
+        { ticker: "GS", name: "Goldman Sachs", reason: "투자은행" },
+      ],
+      "Healthcare": [
+        { ticker: "UNH", name: "UnitedHealth", reason: "헬스케어 1위" },
+        { ticker: "JNJ", name: "J&J", reason: "제약 & 의료기기" },
+        { ticker: "LLY", name: "Eli Lilly", reason: "비만치료제" },
+        { ticker: "PFE", name: "Pfizer", reason: "글로벌 제약" },
+      ],
+    };
+    
+    const relatedStocks = (sectorStocks[currentSector] || sectorStocks["Technology"])
+      .filter(s => s.ticker !== symbol)
+      .slice(0, 4);
+
+    return NextResponse.json({ ticker: symbol, stockName, ...metricData, relatedStocks });
   } catch (error) {
     console.error("Metric API Error:", error);
     return NextResponse.json({ error: "데이터를 불러오는 중 오류가 발생했어요" }, { status: 500 });
