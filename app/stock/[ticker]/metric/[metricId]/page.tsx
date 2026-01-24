@@ -76,7 +76,7 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
     
     // value: "'24Q4 → '25Q1 → '25Q2 → '25Q3"
     // benchmark: "$1.9B → $1.7B → $1.9B → $2.3B"
-    // interpretation: "성장률: -10% → +12% → +21%"
+    // interpretation: "성장률: +24% → +28% → +29%" (3개 - 첫 분기는 비교대상 없음)
     
     const quarters = metric.value.split(' → ').map((q: string) => q.trim())
     const values = metric.benchmark.split(' → ').map((v: string) => v.trim())
@@ -90,10 +90,12 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
     
     if (quarters.length !== values.length) return null
     
+    // 성장률은 두 번째 분기부터 적용 (첫 분기는 비교 대상 없음)
     return quarters.map((quarter: string, i: number) => ({
       quarter,
       value: values[i],
-      growth: growthRates[i] || null,
+      // 첫 번째 분기(i=0)는 성장률 없음, 두 번째부터 growthRates[i-1] 적용
+      growth: i > 0 && growthRates[i - 1] ? growthRates[i - 1] : null,
     }))
   }
   
@@ -126,10 +128,12 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
               <div key={i} className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="text-xs text-muted-foreground mb-1">{item.quarter}</div>
                 <div className="text-sm font-bold text-foreground">{item.value}</div>
-                {item.growth && (
+                {item.growth ? (
                   <div className={`text-xs font-medium mt-1 ${growthColor}`}>
                     {item.growth}
                   </div>
+                ) : (
+                  <div className="text-xs mt-1 text-transparent">-</div>
                 )}
               </div>
             )
