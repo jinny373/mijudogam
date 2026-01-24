@@ -48,6 +48,22 @@ const saveRecentStock = (ticker: string, name: string) => {
   }
 }
 
+// ===== 한국 주식 키워드 (미지원 안내용) =====
+const koreanStockKeywords = [
+  '삼성', '하이닉스', '현대', 'LG', '네이버', '카카오',
+  '셀트리온', '삼바', 'SK', '포스코', '한화', '두산',
+  '고려아연', '동성케미컬', '한올', '에스피지', '기아',
+  '엔씨소프트', '크래프톤', '넥슨', '펄어비스', '카카오게임즈',
+  '쿠팡', '배달의민족', '토스', '야놀자', '직방',
+  '신한', '국민은행', 'KB', '우리은행', '하나은행'
+]
+
+const isKoreanStock = (query: string): boolean => {
+  return koreanStockKeywords.some(keyword =>
+    query.toLowerCase().includes(keyword.toLowerCase())
+  )
+}
+
 // 인기 종목 한글 매핑 (빠른 검색용) - 200개+
 const koreanStockMap: Record<string, string> = {
   // ===== 빅테크 (Mag 7) =====
@@ -85,6 +101,7 @@ const koreanStockMap: Record<string, string> = {
   
   // ===== AI/클라우드/소프트웨어 =====
   "팔란티어": "PLTR",
+  "팔란이오": "PLTR",
   "스노우플레이크": "SNOW",
   "데이터독": "DDOG",
   "크라우드스트라이크": "CRWD",
@@ -97,6 +114,7 @@ const koreanStockMap: Record<string, string> = {
   "서비스나우": "NOW",
   "워크데이": "WDAY",
   "몽고디비": "MDB",
+  "몽고DB": "MDB",
   "엘라스틱": "ESTC",
   "지스케일러": "ZS",
   "포티넷": "FTNT",
@@ -132,6 +150,7 @@ const koreanStockMap: Record<string, string> = {
   
   // ===== 원자력/SMR/유틸리티 =====
   "뉴스케일파워": "SMR",
+  "뉴스케일": "SMR",
   "오클로": "OKLO",
   "센트러스에너지": "LEU",
   "카메코": "CCJ",
@@ -167,6 +186,8 @@ const koreanStockMap: Record<string, string> = {
   // ===== 양자컴퓨터 =====
   "아이온큐": "IONQ",
   "리겟티": "RGTI",
+  "리게티": "RGTI",
+  "리게티컴퓨팅": "RGTI",
   "디웨이브": "QBTS",
   
   // ===== 핀테크/암호화폐 =====
@@ -286,11 +307,14 @@ const koreanStockMap: Record<string, string> = {
   "L3해리스": "LHX",
   "헌팅턴잉걸스": "HII",
   "로켓랩": "RKLB",
+  "로켓": "RKLB",
+  "로켓램": "RKLB",
   "버진갤럭틱": "SPCE",
   "플래닛랩스": "PL",
 
   // ===== 산업재/장비 =====
   "캐터필러": "CAT",
+  "캐터필": "CAT",
   "디어": "DE",
   "존디어": "DE",
   "허니웰": "HON",
@@ -308,31 +332,70 @@ const koreanStockMap: Record<string, string> = {
   "린데": "LIN",
 
   // 리츠
-  "아메리칸타워": "AMT",
   "프로로지스": "PLD",
-  "에퀴닉스": "EQIX",
   "리얼티인컴": "O",
-  "디지털리얼티": "DLR",
 
   // 기타 인기 종목
   "팔로알토": "PANW",
   "팔로알토네트웍스": "PANW",
-  "지스케일러": "ZS",
-  "포티넷": "FTNT",
-  "서비스나우": "NOW",
-  "워크데이": "WDAY",
-  "몽고DB": "MDB",
-  "몽고디비": "MDB",
-  "엘라스틱": "ESTC",
-  "트윌리오": "TWLO",
-  "옥타": "OKTA",
-  "도큐사인": "DOCU",
-  "아틀라시안": "TEAM",
-  "허브스팟": "HUBS",
-  "앤시스": "ANSS",
-  "시놉시스": "SNPS",
-  "케이던스": "CDNS",
-  "오토데스크": "ADSK",
+
+  // ===== v9.20 추가: 검색 실패 종목 매핑 =====
+  "앱러빈": "APP",
+  "알리바바": "BABA",
+  "샌디스크": "SNDK",
+  "비트마인": "BMNR",
+  "비트마인이머션": "BMNR",
+  "나비타스": "NVTS",
+  "나비타스세미컨덕터": "NVTS",
+  "네비우스": "NBIS",
+  "네비우스그룹": "NBIS",
+  "레드캣": "RCAT",
+  "레드캣홀딩스": "RCAT",
+  "업스타트": "UPST",
+  "업스타트홀딩스": "UPST",
+  "셰니어": "LNG",
+  "쉐니어": "LNG",
+  "셰니어에너지": "LNG",
+  "코크리스털": "COCP",
+  "코크리스털파마": "COCP",
+  "보이저": "VOYG",
+  "보이저테크놀로지스": "VOYG",
+  "써클": "CRCL",
+  "이오스": "EOSE",
+  "노던": "NOG",
+  "노던다이": "NOG",
+}
+
+// ===== v9.20 추가: 유사 종목 찾기 =====
+const findSimilarStocks = (query: string): { ticker: string; name: string }[] => {
+  const normalizedQuery = query.toLowerCase().replace(/\s/g, '')
+  const suggestions: { ticker: string; name: string; score: number }[] = []
+
+  for (const [korean, ticker] of Object.entries(koreanStockMap)) {
+    const normalizedKorean = korean.toLowerCase().replace(/\s/g, '')
+
+    // 포함 관계 체크
+    if (normalizedKorean.includes(normalizedQuery) ||
+        normalizedQuery.includes(normalizedKorean)) {
+      suggestions.push({
+        ticker,
+        name: korean,
+        score: normalizedKorean === normalizedQuery ? 100 : 50
+      })
+    }
+  }
+
+  // 중복 티커 제거 후 상위 3개
+  const uniqueTickers = new Set<string>()
+  return suggestions
+    .sort((a, b) => b.score - a.score)
+    .filter(item => {
+      if (uniqueTickers.has(item.ticker)) return false
+      uniqueTickers.add(item.ticker)
+      return true
+    })
+    .slice(0, 3)
+    .map(({ ticker, name }) => ({ ticker, name }))
 }
 
 interface SearchResult {
@@ -398,7 +461,7 @@ export function StockSearchForm() {
         setShowDropdown(true)
       } else if (koreanMatches.length === 0) {
         setResults([])
-        setShowDropdown(false)
+        setShowDropdown(true) // v9.20: 결과 없어도 드롭다운 표시 (안내 메시지용)
       }
     } catch (error) {
       console.error("Search error:", error)
@@ -451,7 +514,7 @@ export function StockSearchForm() {
     setIsLoading(true)
     setShowDropdown(false)
     setQuery("")
-  trackSearch(ticker)
+    trackSearch(ticker)
     // 최근 본 종목에 저장
     const stockName = name || koreanStockMap[ticker] || ticker
     saveRecentStock(ticker, stockName)
@@ -517,6 +580,9 @@ export function StockSearchForm() {
     inputRef.current?.focus()
   }
 
+  // v9.20: 유사 종목 추천 가져오기
+  const similarStocks = query.length >= 2 ? findSimilarStocks(query) : []
+
   return (
     <div className="w-full max-w-md mx-auto space-y-4">
       <form onSubmit={handleSubmit} className="relative">
@@ -532,7 +598,7 @@ export function StockSearchForm() {
               setSelectedIndex(-1)
             }}
             onFocus={() => {
-              if (results.length > 0) setShowDropdown(true)
+              if (results.length > 0 || query.length >= 2) setShowDropdown(true)
             }}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
@@ -597,7 +663,7 @@ export function StockSearchForm() {
           </div>
         )}
 
-        {/* 검색 결과 없을 때 안내 */}
+        {/* v9.20: 검색 결과 없을 때 안내 (개선됨) */}
         {showDropdown && results.length === 0 && query.length >= 2 && !isSearching && (
           <div
             ref={dropdownRef}
@@ -606,9 +672,47 @@ export function StockSearchForm() {
             <p className="text-sm text-muted-foreground text-center">
               검색 결과가 없어요
             </p>
-            <p className="text-xs text-muted-foreground text-center mt-1">
-              💡 영문명이나 티커로 검색해보세요 (예: NVDA, Apple)
-            </p>
+            
+            {/* v9.20: 한국 주식 검색 시 안내 */}
+            {isKoreanStock(query) && (
+              <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
+                <p className="text-sm text-orange-600 dark:text-orange-400 text-center">
+                  ⚠️ 미주도감은 <strong>미국 주식</strong>만 지원해요
+                </p>
+                <p className="text-xs text-orange-500 dark:text-orange-500 text-center mt-1">
+                  한국 주식은 네이버 증권, 키움증권 등을 이용해주세요
+                </p>
+              </div>
+            )}
+
+            {/* v9.20: 유사 종목 추천 */}
+            {!isKoreanStock(query) && similarStocks.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs text-muted-foreground text-center mb-2">
+                  🔍 이 종목을 찾으셨나요?
+                </p>
+                <div className="space-y-1">
+                  {similarStocks.map((stock) => (
+                    <button
+                      key={stock.ticker}
+                      type="button"
+                      onClick={() => handleSelectStock(stock.ticker, stock.name)}
+                      className="w-full px-3 py-2 text-left hover:bg-muted/50 rounded-lg transition-colors"
+                    >
+                      <span className="font-semibold text-primary">{stock.ticker}</span>
+                      <span className="ml-2 text-muted-foreground">{stock.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 기본 안내 (한국 주식도 아니고 유사 종목도 없을 때) */}
+            {!isKoreanStock(query) && similarStocks.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                💡 영문 티커로 검색해보세요 (예: NVDA, AAPL)
+              </p>
+            )}
           </div>
         )}
       </form>
