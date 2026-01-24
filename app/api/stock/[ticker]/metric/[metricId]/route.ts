@@ -56,10 +56,18 @@ export async function GET(
     const { ticker, metricId } = await params;
     const symbol = ticker.toUpperCase();
 
+    // v9.22: incomeStatementHistoryQuarterly 추가
     const [quote, quoteSummary] = await Promise.all([
       yahooFinance.quote(symbol),
       yahooFinance.quoteSummary(symbol, {
-        modules: ["summaryProfile", "financialData", "defaultKeyStatistics", "incomeStatementHistory", "cashflowStatementHistory"],
+        modules: [
+          "summaryProfile", 
+          "financialData", 
+          "defaultKeyStatistics", 
+          "incomeStatementHistory",
+          "incomeStatementHistoryQuarterly",  // v9.22: 분기 데이터
+          "cashflowStatementHistory"
+        ],
       }),
     ]);
 
@@ -70,6 +78,7 @@ export async function GET(
     const financialData = quoteSummary.financialData;
     const keyStats = quoteSummary.defaultKeyStatistics;
     const incomeHistory = quoteSummary.incomeStatementHistory?.incomeStatementHistory || [];
+    const incomeQuarterly = quoteSummary.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
     const cashflowHistory = quoteSummary.cashflowStatementHistory?.cashflowStatements || [];
     const stockName = quote.shortName || quote.longName || symbol;
 
@@ -90,21 +99,55 @@ export async function GET(
       revenueGrowth = calculateGrowth(revenueCurrentYear, revenuePreviousYear);
       earningsGrowth = calculateGrowth(netIncomeCurrentYear, netIncomePreviousYear);
       
-      // 매출이 0인데 financialData에는 있으면 그걸 사용
       if (revenueCurrentYear === 0 && financialData?.totalRevenue) {
         revenueCurrentYear = financialData.totalRevenue;
       }
     } else {
-      // ⚠️ incomeHistory가 없으면 financialData에서 가져오기 (Yahoo API 변경 대응)
       revenueCurrentYear = financialData?.totalRevenue || 0;
       revenueGrowth = financialData?.revenueGrowth || null;
       earningsGrowth = financialData?.earningsGrowth || null;
       netIncomeCurrentYear = financialData?.netIncomeToCommon || 0;
     }
     
-    // 실제 매출 (fallback 포함)
     const actualRevenue = revenueCurrentYear || financialData?.totalRevenue || 0;
     isPreRevenueCompany = actualRevenue === 0;
+
+    // v9.22: 분기별 추이 데이터 계산
+    const quarterlyTrend = incomeQuarterly.slice(0, 4).map((q: any) => {
+      const quarter = q.endDate ? new Date(q.endDate) : null;
+      const quarterLabel = quarter 
+        ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+        : "N/A";
+      return {
+        quarter: quarterLabel,
+        revenue: q.totalRevenue || 0,
+        netIncome: q.netIncome || 0,
+      };
+    }).reverse();
+
+    // 분기 성장률 계산
+    let latestQoQGrowth: number | null = null;
+    let quarterlyGrowthRates: string[] = [];
+    
+    if (quarterlyTrend.length >= 2) {
+      const latest = quarterlyTrend[quarterlyTrend.length - 1];
+      const previous = quarterlyTrend[quarterlyTrend.length - 2];
+      if (latest.revenue > 0 && previous.revenue > 0) {
+        latestQoQGrowth = (latest.revenue - previous.revenue) / previous.revenue;
+      }
+      
+      for (let i = 1; i < quarterlyTrend.length; i++) {
+        const prev = quarterlyTrend[i - 1];
+        const curr = quarterlyTrend[i];
+        if (prev.revenue > 0 && curr.revenue > 0) {
+          const growth = ((curr.revenue - prev.revenue) / prev.revenue) * 100;
+          quarterlyGrowthRates.push(growth >= 0 ? `+${growth.toFixed(0)}%` : `${growth.toFixed(0)}%`);
+        }
+      }
+    }
+    
+    const hasUsableQuarterlyData = quarterlyTrend.length >= 2 && quarterlyGrowthRates.length > 0;
+    const latestQuarterLabel = quarterlyTrend.length > 0 ? quarterlyTrend[quarterlyTrend.length - 1].quarter : null;
 
     const growthYearLabel = previousFiscalYear && currentFiscalYear ? `${previousFiscalYear} → ${currentFiscalYear}` : `${latestFiscalYear}년 기준`;
     const revenueGrowthValue = revenueGrowth ?? 0;
@@ -113,15 +156,16 @@ export async function GET(
     const roe = financialData?.returnOnEquity || 0;
     const operatingMargin = financialData?.operatingMargins || 0;
     const profitMargin = financialData?.profitMargins || 0;
+    
+    // v9.22: debtToEquity, currentRatio는 mrq(최근 분기) 기준
     const debtToEquity = financialData?.debtToEquity ? financialData.debtToEquity / 100 : 0;
     const currentRatio = financialData?.currentRatio || 0;
+    const currentQuarterLabel = latestQuarterLabel || `${new Date().getFullYear()}Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
     
-    // PER: Trailing(TTM) 우선
     const trailingPER = keyStats?.trailingPE || quote.trailingPE || 0;
     const forwardPER = keyStats?.forwardPE || 0;
     const per = trailingPER > 0 ? trailingPER : forwardPER;
     const perType = trailingPER > 0 ? "TTM" : (forwardPER > 0 ? "Forward" : "");
-    
     const peg = keyStats?.pegRatio || 0;
     const pbr = keyStats?.priceToBook || 0;
 
@@ -130,73 +174,30 @@ export async function GET(
     if (cashflowHistory.length >= 1) {
       const latest = cashflowHistory[0];
       ocfFromHistory = latest?.totalCashFromOperatingActivities || ocfFromHistory;
-      fcfFromHistory = ocfFromHistory + (latest?.capitalExpenditures || 0);
+      const capex = latest?.capitalExpenditures || 0;
+      fcfFromHistory = ocfFromHistory + capex;
     }
 
-    const isLossCompany = netIncomeCurrentYear < 0;
-    const isNegativePER = per < 0;
     const isNegativeOCF = ocfFromHistory < 0;
+    const isNegativePER = per < 0;
+    const isLossCompany = netIncomeCurrentYear < 0;
 
-    let metricData;
+    let metricData: any;
 
     switch (metricId) {
       case "earning":
-        const getEarningSummary = () => {
-          if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계 기업이에요";
-          if (isNegativeOCF) return "장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요";
-          if (roe > 0.15) return "돈을 잘 벌고 있어요";
-          if (roe > 0.05) return "돈을 적당히 벌고 있어요";
-          if (roe < 0) return "현재 적자 상태예요";
-          return "수익성이 낮은 편이에요";
-        };
-        
         metricData = {
           title: "돈 버는 능력", emoji: "💰",
-          status: isPreRevenueCompany ? "연구개발 단계" : isNegativeOCF ? "현금흐름 주의" : (roe > 0.15 ? "우수" : roe > 0.05 ? "보통" : "주의"),
-          statusColor: isPreRevenueCompany ? "yellow" : isNegativeOCF ? "red" : getStatus(roe, { good: 0.15, bad: 0.05 }, true),
-          summary: getEarningSummary(),
+          status: roe > 0.15 ? "우수" : roe > 0.05 ? "보통" : isNegativeOCF ? "현금흐름 주의" : "주의",
+          statusColor: isNegativeOCF ? "red" : getStatus(roe, { good: 0.15, bad: 0.05 }, true),
+          summary: isNegativeOCF ? "현금이 빠져나가고 있어요" : roe > 0.15 ? "돈을 잘 벌고 있어요" : roe > 0.05 ? "보통 수준으로 벌고 있어요" : "수익성이 낮아요",
           dataYear: `${latestFiscalYear}년 연간 기준`,
           metrics: [
-            { 
-              name: "ROE (자기자본이익률)", 
-              description: "💡 내 돈(자본)으로 얼마나 벌었나? 높을수록 효율적",
-              value: formatPercentNoSign(roe), 
-              status: roe > 0.15 ? "green" : roe > 0.05 ? "yellow" : "red", 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
-              interpretation: `${roe > 0.15 ? "우수 (15%↑)" : roe > 0.05 ? "보통 (5~15%)" : roe > 0 ? "낮음 (5%↓)" : "적자"}` 
-            },
-            { 
-              name: "영업이익률", 
-              description: "💡 본업에서 매출 100원당 얼마가 남나?",
-              value: isPreRevenueCompany ? "아직 매출 없음" : formatPercentNoSign(operatingMargin), 
-              status: isPreRevenueCompany ? "yellow" : getStatus(operatingMargin, { good: 0.1, bad: 0.05 }, true), 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
-              interpretation: isPreRevenueCompany ? "매출 없음" : `${operatingMargin > 0.15 ? "우수 (15%↑)" : operatingMargin > 0.1 ? "양호 (10%↑)" : operatingMargin > 0.05 ? "보통" : "낮음"}` 
-            },
-            { 
-              name: "순이익률", 
-              description: "💡 모든 비용 제하고 최종적으로 얼마가 남나?",
-              value: isPreRevenueCompany ? "아직 매출 없음" : formatPercentNoSign(profitMargin), 
-              status: isPreRevenueCompany ? "yellow" : getStatus(profitMargin, { good: 0.1, bad: 0.03 }, true), 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
-              interpretation: isPreRevenueCompany ? "매출 없음" : `${profitMargin > 0.1 ? "우수 (10%↑)" : profitMargin > 0.05 ? "양호 (5%↑)" : profitMargin > 0 ? "보통" : "적자"}` 
-            },
-            { 
-              name: "영업현금흐름 (OCF)", 
-              description: "💡 영업활동으로 실제 들어온 현금",
-              value: formatCurrency(ocfFromHistory), 
-              status: ocfFromHistory > 0 ? "green" : "red", 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
-              interpretation: ocfFromHistory > 0 ? "✅ 현금 유입 중" : "⚠️ 현금 유출 중" 
-            },
-            { 
-              name: "잉여현금흐름 (FCF)", 
-              description: "💡 투자 후 남는 현금",
-              value: formatCurrency(fcfFromHistory), 
-              status: fcfFromHistory > 0 ? "green" : "yellow", 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
-              interpretation: fcfFromHistory > 0 ? "✅ 투자 후 현금 남음" : "투자에 현금 사용 중" 
-            },
+            { name: "ROE (자기자본이익률)", description: "💡 내 돈(자본)으로 얼마나 벌었나?", value: formatPercentNoSign(roe), status: getStatus(roe, { good: 0.15, bad: 0.05 }, true), benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: `${roe > 0.15 ? "우수 (15%↑)" : roe > 0.05 ? "보통 (5~15%)" : roe > 0 ? "낮음 (5%↓)" : "적자"}` },
+            { name: "영업이익률", description: "💡 본업에서 매출 100원당 얼마가 남나?", value: formatPercentNoSign(operatingMargin), status: getStatus(operatingMargin, { good: 0.1, bad: 0.05 }, true), benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: `${operatingMargin > 0.15 ? "우수 (15%↑)" : operatingMargin > 0.1 ? "양호 (10%↑)" : operatingMargin > 0.05 ? "보통" : "낮음"}` },
+            { name: "순이익률", description: "💡 모든 비용 제하고 최종적으로 얼마가 남나?", value: formatPercentNoSign(profitMargin), status: getStatus(profitMargin, { good: 0.1, bad: 0.03 }, true), benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: `${profitMargin > 0.1 ? "우수 (10%↑)" : profitMargin > 0.05 ? "양호 (5%↑)" : profitMargin > 0 ? "보통" : "적자"}` },
+            { name: "영업현금흐름 (OCF)", description: "💡 영업활동으로 실제 들어온 현금", value: formatCurrency(ocfFromHistory), status: ocfFromHistory > 0 ? "green" : "red", benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: ocfFromHistory > 0 ? "✅ 현금 유입 중" : "⚠️ 현금 유출 중" },
+            { name: "잉여현금흐름 (FCF)", description: "💡 투자 후 남는 현금", value: formatCurrency(fcfFromHistory), status: fcfFromHistory > 0 ? "green" : "yellow", benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: fcfFromHistory > 0 ? "✅ 투자 후 현금 남음" : "투자에 현금 사용 중" },
           ],
           whyImportant: ["ROE가 높으면 주주 돈으로 효율적으로 돈을 번다는 의미예요", "💡 순이익이 좋아도 현금흐름(OCF)이 마이너스면 위험 신호예요"],
           caution: isNegativeOCF ? ["⚠️ 장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요"] : undefined,
@@ -204,19 +205,21 @@ export async function GET(
         break;
 
       case "debt":
+        // v9.22: financialData의 debtToEquity, currentRatio는 mrq(최근 분기) 기준
         metricData = {
           title: "빚 관리", emoji: "🏦",
           status: debtToEquity < 0.5 ? "우수" : debtToEquity < 1.5 ? "보통" : "주의",
           statusColor: getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false),
-          summary: debtToEquity < 0.3 ? "빚이 거의 없어요" : debtToEquity < 1 ? "빚이 적당해요" : "빚이 많은 편이에요",
-          dataYear: `${latestFiscalYear}년 연간 기준`,
+          summary: debtToEquity < 0.3 ? "자본 대비 빚 부담이 적어요" : debtToEquity < 1 ? "빚이 적당해요" : "빚이 많은 편이에요",
+          // v9.22: 최근 분기 기준으로 표시
+          dataYear: `${currentQuarterLabel} 기준 (최근 분기)`,
           metrics: [
             { 
               name: "부채비율 (빚 ÷ 자본)", 
               description: "💡 내 돈 대비 빚이 얼마나 있나? 낮을수록 안전",
               value: formatPercentNoSign(debtToEquity), 
               status: getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false), 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
+              benchmark: `📅 ${currentQuarterLabel} (최근 분기)`, 
               interpretation: `${debtToEquity < 0.3 ? "우수 (30%↓)" : debtToEquity < 0.5 ? "양호 (50%↓)" : debtToEquity < 1 ? "보통 (100%↓)" : "높음 (100%↑)"}` 
             },
             { 
@@ -224,7 +227,7 @@ export async function GET(
               description: "💡 1년 내 갚을 빚 대비 현금 여유. 1배 이상 필요",
               value: formatRatio(currentRatio), 
               status: getStatus(currentRatio, { good: 1.5, bad: 1 }, true), 
-              benchmark: `📅 ${latestFiscalYear}년 연간`, 
+              benchmark: `📅 ${currentQuarterLabel} (최근 분기)`, 
               interpretation: `${currentRatio > 2 ? "우수 (2배↑)" : currentRatio > 1.5 ? "양호 (1.5배↑)" : currentRatio > 1 ? "보통 (1배↑)" : "주의 (1배↓)"}` 
             },
           ],
@@ -233,21 +236,26 @@ export async function GET(
         break;
 
       case "growth":
-        // 성장률 데이터 유무 확인
         const hasRevenueGrowthData = revenueGrowth !== null;
         const hasEarningsGrowthData = earningsGrowth !== null;
-        // revenueGrowthValue, earningsGrowthValue는 이미 상위에서 선언됨
         const hasRevenueButNoGrowthData = actualRevenue > 0 && !hasRevenueGrowthData;
         
-        // 적자 관련 상태
         const isCurrentlyLoss = netIncomeCurrentYear < 0;
         const wasPreviouslyLoss = netIncomePreviousYear < 0;
         const turnedProfitable = wasPreviouslyLoss && !isCurrentlyLoss;
         const lossExpanded = wasPreviouslyLoss && isCurrentlyLoss && netIncomeCurrentYear < netIncomePreviousYear;
         
-        // 성장 상태 결정
+        // v9.22: 분기 데이터 우선 사용
         const getGrowthStatusText = () => {
           if (isPreRevenueCompany) return "연구개발 단계";
+          // 분기 데이터 있으면 분기 기준으로 판단
+          if (hasUsableQuarterlyData && latestQoQGrowth !== null) {
+            if (latestQoQGrowth > 0.3) return "초고속 성장";
+            if (latestQoQGrowth > 0.15) return "고성장";
+            if (latestQoQGrowth > 0) return "성장중";
+            if (latestQoQGrowth > -0.1) return "정체";
+            return "역성장";
+          }
           if (hasRevenueButNoGrowthData) return "데이터 부족";
           if (revenueGrowthValue > 0.5) return "초고속 성장";
           if (revenueGrowthValue > 0.15) return "고성장";
@@ -258,6 +266,13 @@ export async function GET(
         
         const getGrowthSummary = () => {
           if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계예요";
+          // v9.22: 분기 데이터 우선
+          if (hasUsableQuarterlyData && latestQoQGrowth !== null) {
+            if (latestQoQGrowth > 0.2) return "최근 분기 빠르게 성장하고 있어요!";
+            if (latestQoQGrowth > 0.1) return "최근 분기 꾸준히 성장하고 있어요";
+            if (latestQoQGrowth > 0) return "최근 분기 성장하고 있어요";
+            return "최근 분기 성장이 둔화됐어요";
+          }
           if (hasRevenueButNoGrowthData) return `연간 매출 ${formatCurrency(actualRevenue)}이지만, 전년 데이터가 없어 성장률을 알 수 없어요`;
           if (revenueGrowthValue > 0.5) return "폭발적으로 성장하고 있어요!";
           if (revenueGrowthValue > 0.3) return "빠르게 성장하고 있어요";
@@ -266,7 +281,6 @@ export async function GET(
           return "성장이 멈췄거나 역성장 중이에요";
         };
         
-        // 순이익 관련 해석
         const getEarningsDisplay = () => {
           if (!hasEarningsGrowthData) return "데이터 없음";
           if (turnedProfitable) return `흑자 전환! (${formatCurrency(netIncomeCurrentYear)})`;
@@ -292,44 +306,75 @@ export async function GET(
           return getStatus(earningsGrowthValue, { good: 0.15, bad: 0 }, true);
         };
         
+        // v9.22: 분기 데이터 우선 표시
+        const growthMetrics = [];
+        
+        // 분기별 매출 추이 (분기 데이터 있으면 우선)
+        if (hasUsableQuarterlyData) {
+          growthMetrics.push({
+            name: "📈 분기별 매출 추이",
+            description: "💡 최근 4분기 매출 흐름. 성장세를 직접 확인!",
+            value: quarterlyTrend.map(q => q.quarter.replace(/^\d{4}/, "'" + q.quarter.slice(2, 4))).join(' → '),
+            status: latestQoQGrowth !== null ? (latestQoQGrowth > 0.1 ? "green" : latestQoQGrowth > 0 ? "yellow" : "red") : "yellow",
+            benchmark: quarterlyTrend.map(q => formatCurrency(q.revenue, "-")).join(' → '),
+            interpretation: `성장률: ${quarterlyGrowthRates.join(' → ')}`,
+          });
+        } else {
+          growthMetrics.push({ 
+            name: "매출 성장률 (전년 대비)", 
+            description: "💡 작년보다 매출이 얼마나 늘었나?",
+            value: isPreRevenueCompany ? "아직 매출 없음" : hasRevenueButNoGrowthData ? `${formatCurrency(actualRevenue)} (${latestFiscalYear}년)` : formatPercent(revenueGrowthValue), 
+            status: isPreRevenueCompany ? "red" : hasRevenueButNoGrowthData ? "yellow" : getStatus(revenueGrowthValue, { good: 0.15, bad: 0 }, true), 
+            benchmark: hasRevenueGrowthData ? `📅 ${growthYearLabel}` : (hasUsableQuarterlyData ? "📊 분기 추이로 확인하세요" : "신규 상장/분사 기업"), 
+            interpretation: isPreRevenueCompany ? "매출 없음" : hasRevenueButNoGrowthData ? "전년 데이터가 없어요" : `${revenueGrowthValue > 0.5 ? "초고속 (50%↑)" : revenueGrowthValue > 0.15 ? "고성장 (15%↑)" : revenueGrowthValue > 0 ? "성장 중" : "역성장"}` 
+          });
+        }
+        
+        // 순이익 추이
+        growthMetrics.push({ 
+          name: "순이익 추이", 
+          description: "💡 최종 이익이 늘고 있나?",
+          value: getEarningsDisplay(), 
+          status: getEarningsStatus(), 
+          benchmark: hasEarningsGrowthData ? `📅 ${growthYearLabel}` : "전년 데이터 없음", 
+          interpretation: getEarningsInterpretation() 
+        });
+        
+        // 연간 매출 또는 연간 성장률
+        if (hasRevenueGrowthData) {
+          growthMetrics.push({
+            name: `연간 성장률 (${growthYearLabel})`,
+            description: "💡 1년 단위 성장률. 장기 추세 파악용",
+            value: formatPercent(revenueGrowthValue),
+            status: getStatus(revenueGrowthValue, { good: 0.15, bad: 0 }, true),
+            benchmark: `${formatCurrency(revenuePreviousYear)} → ${formatCurrency(revenueCurrentYear)}`,
+            interpretation: `${revenueGrowthValue > 0.5 ? "폭발적 성장!" : revenueGrowthValue > 0.15 ? "고성장" : revenueGrowthValue > 0 ? "안정적 성장" : "역성장"}`,
+          });
+        } else {
+          growthMetrics.push({ 
+            name: `연간 매출 (${latestFiscalYear}년)`, 
+            description: "💡 1년간 총 판매 금액",
+            value: actualRevenue > 0 ? formatCurrency(actualRevenue) : "아직 매출 없음", 
+            status: actualRevenue > 0 ? "green" : "red", 
+            benchmark: hasUsableQuarterlyData ? "📊 분기 추이로 확인하세요" : "신규 상장/분사 기업", 
+            interpretation: actualRevenue > 0 ? `${latestFiscalYear}년 총 매출` : "연구개발 단계" 
+          });
+        }
+        
         metricData = {
           title: "성장 가능성", emoji: "🚀",
           status: getGrowthStatusText(),
-          statusColor: isPreRevenueCompany ? "yellow" : hasRevenueButNoGrowthData ? "yellow" : getStatus(revenueGrowthValue, { good: 0.15, bad: 0 }, true),
+          statusColor: isPreRevenueCompany ? "yellow" : (hasUsableQuarterlyData && latestQoQGrowth !== null) ? getStatus(latestQoQGrowth, { good: 0.15, bad: 0 }, true) : hasRevenueButNoGrowthData ? "yellow" : getStatus(revenueGrowthValue, { good: 0.15, bad: 0 }, true),
           summary: getGrowthSummary(),
-          dataYear: growthYearLabel,
-          metrics: [
-            { 
-              name: "매출 성장률 (전년 대비)", 
-              description: "💡 작년보다 매출이 얼마나 늘었나?",
-              value: isPreRevenueCompany ? "아직 매출 없음" : hasRevenueButNoGrowthData ? `${formatCurrency(actualRevenue)} (${latestFiscalYear}년)` : formatPercent(revenueGrowthValue), 
-              status: isPreRevenueCompany ? "red" : hasRevenueButNoGrowthData ? "yellow" : getStatus(revenueGrowthValue, { good: 0.15, bad: 0 }, true), 
-              benchmark: hasRevenueGrowthData ? `📅 ${growthYearLabel}` : "전년 데이터 없음", 
-              interpretation: isPreRevenueCompany ? "매출 없음" : hasRevenueButNoGrowthData ? "전년 데이터 없음" : `${revenueGrowthValue > 0.5 ? "초고속 (50%↑)" : revenueGrowthValue > 0.15 ? "고성장 (15%↑)" : revenueGrowthValue > 0 ? "성장 중" : "역성장"}` 
-            },
-            { 
-              name: "순이익 추이", 
-              description: "💡 최종 이익이 늘고 있나?",
-              value: getEarningsDisplay(), 
-              status: getEarningsStatus(), 
-              benchmark: hasEarningsGrowthData ? `📅 ${growthYearLabel}` : "전년 데이터 없음", 
-              interpretation: getEarningsInterpretation() 
-            },
-            { 
-              name: "연간 매출", 
-              description: "💡 1년간 총 판매 금액",
-              value: actualRevenue > 0 ? formatCurrency(actualRevenue) : "아직 매출 없음", 
-              status: actualRevenue > 0 ? "green" : "red", 
-              benchmark: revenuePreviousYear > 0 ? `📅 ${previousFiscalYear || (parseInt(latestFiscalYear) - 1)} → ${latestFiscalYear}` : `📅 ${latestFiscalYear}년`, 
-              interpretation: actualRevenue > 0 ? (revenuePreviousYear > 0 ? `${formatCurrency(revenuePreviousYear)} → ${formatCurrency(actualRevenue)}` : `${latestFiscalYear}년 매출`) : "연구개발 단계" 
-            },
-          ],
+          // v9.22: 분기 데이터 있으면 분기 기준
+          dataYear: hasUsableQuarterlyData ? `${latestQuarterLabel} 기준` : growthYearLabel,
+          metrics: growthMetrics,
           whyImportant: isPreRevenueCompany 
             ? ["연구개발 단계 기업은 매출 대신 기술력과 현금 보유량이 중요해요"] 
-            : hasRevenueButNoGrowthData
+            : hasRevenueButNoGrowthData && !hasUsableQuarterlyData
               ? ["⚠️ 전년 데이터가 없어 성장률을 정확히 알 수 없어요", "최신 실적 발표(10-K, 10-Q)를 직접 확인하세요"]
               : ["성장이 멈추면 주가도 멈출 수 있어요", "매출보다 이익 성장이 빠르면 효율성이 좋아지는 거예요"],
-          caution: hasRevenueButNoGrowthData 
+          caution: hasRevenueButNoGrowthData && !hasUsableQuarterlyData
             ? ["⚠️ 성장률 데이터가 부족해요", "정확한 정보는 기업 IR 자료를 확인하세요"]
             : turnedProfitable 
               ? ["🎉 최근 흑자 전환에 성공했어요!", "흑자가 지속될지 다음 분기 실적을 확인하세요"]
@@ -343,7 +388,6 @@ export async function GET(
         const calculatedPEG = (per > 0 && earningsGrowthValue > 0) ? per / (earningsGrowthValue * 100) : null;
         const displayPEG = peg > 0 ? peg : calculatedPEG;
         
-        // PER 상태/요약 함수
         const getPERStatusText = () => {
           if (isNegativePER) return "적자 기업";
           if (per < 15) return "낮은 편";
@@ -366,31 +410,9 @@ export async function GET(
           summary: getPERSummary(),
           dataYear: "현재 주가 기준",
           metrics: [
-            { 
-              name: perType ? `PER (${perType})` : "PER", 
-              description: perType === "TTM" ? "💡 최근 12개월 실제 이익 기준" : "💡 예상 이익 기준",
-              value: isNegativePER ? "적자 기업" : formatRatio(per), 
-              status: isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false), 
-              benchmark: "📅 현재 주가 기준", 
-              interpretation: isNegativePER ? "적자라 PER 산정 불가" : `${per < 15 ? "낮은 편 (15↓)" : per < 40 ? "보통 (15~40)" : per < 60 ? "높은 편 (40~60)" : "매우 높음 (60↑)"}`,
-              contextNote: "💡 업종마다 적정 PER이 달라요. 성장주는 40~60도 일반적이에요."
-            },
-            { 
-              name: "PEG (성장 대비 가격)", 
-              description: "💡 PER ÷ 이익성장률",
-              value: displayPEG && displayPEG > 0 ? formatRatio(displayPEG) : "데이터 부족", 
-              status: displayPEG && displayPEG > 0 ? getStatus(displayPEG, { good: 1, bad: 2 }, false) : "yellow", 
-              benchmark: "📅 예상 성장률 기준", 
-              interpretation: displayPEG && displayPEG > 0 ? `${displayPEG < 0.5 ? "매우 낮음 (0.5↓)" : displayPEG < 1 ? "낮은 편 (1↓)" : displayPEG < 2 ? "보통 (1~2)" : "높은 편 (2↑)"}` : "데이터 부족" 
-            },
-            { 
-              name: "PBR (주가순자산비율)", 
-              description: "💡 주가 ÷ 1주당 순자산",
-              value: pbr > 0 ? formatRatio(pbr) : "데이터 없음", 
-              status: pbr > 0 ? getStatus(pbr, { good: 3, bad: 10 }, false) : "yellow", 
-              benchmark: `📅 ${latestFiscalYear}년 기준`, 
-              interpretation: pbr > 0 ? `${pbr < 1 ? "낮은 편 (1↓)" : pbr < 3 ? "보통 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "높은 편 (5↑)"}` : "데이터 부족" 
-            },
+            { name: perType ? `PER (${perType})` : "PER", description: perType === "TTM" ? "💡 최근 12개월 실제 이익 기준" : "💡 예상 이익 기준", value: isNegativePER ? "적자 기업" : formatRatio(per), status: isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false), benchmark: "📅 현재 주가 기준", interpretation: isNegativePER ? "적자라 PER 산정 불가" : `${per < 15 ? "낮은 편 (15↓)" : per < 40 ? "보통 (15~40)" : per < 60 ? "높은 편 (40~60)" : "매우 높음 (60↑)"}`, contextNote: "💡 업종마다 적정 PER이 달라요. 성장주는 40~60도 일반적이에요." },
+            { name: "PEG (성장 대비 가격)", description: "💡 PER ÷ 이익성장률", value: displayPEG && displayPEG > 0 ? formatRatio(displayPEG) : "데이터 부족", status: displayPEG && displayPEG > 0 ? getStatus(displayPEG, { good: 1, bad: 2 }, false) : "yellow", benchmark: "📅 예상 성장률 기준", interpretation: displayPEG && displayPEG > 0 ? `${displayPEG < 0.5 ? "매우 낮음 (0.5↓)" : displayPEG < 1 ? "낮은 편 (1↓)" : displayPEG < 2 ? "보통 (1~2)" : "높은 편 (2↑)"}` : "데이터 부족" },
+            { name: "PBR (주가순자산비율)", description: "💡 주가 ÷ 1주당 순자산", value: pbr > 0 ? formatRatio(pbr) : "데이터 없음", status: pbr > 0 ? getStatus(pbr, { good: 3, bad: 10 }, false) : "yellow", benchmark: `📅 ${latestFiscalYear}년 기준`, interpretation: pbr > 0 ? `${pbr < 1 ? "낮은 편 (1↓)" : pbr < 3 ? "보통 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "높은 편 (5↑)"}` : "데이터 부족" },
           ],
           whyImportant: isNegativePER || isLossCompany ? ["적자 기업은 PER 대신 PSR이나 PBR로 평가해요", "흑자 전환 시점과 성장 가능성이 더 중요해요"] : ["업종마다 적정 PER이 달라요 (기술주 vs 금융주)", "PEG가 1 이하면 성장률 대비 매력적일 수 있어요"],
           decisionPoint: isNegativePER || isLossCompany ? ["흑자 전환 가능성이 있다면 → 장기 투자 고려", "적자가 지속된다면 → 리스크가 커요"] : ["성장이 계속되면 → 지금 가격도 정당화됨", "성장이 꺾이면 → 비싸게 산 게 됨"],
