@@ -63,8 +63,8 @@ export async function GET(
     const { ticker } = await params;
     const symbol = ticker.toUpperCase();
 
-    // Yahoo Finance API 호출 - 현금흐름 데이터 추가
-    const [quote, quoteSummary] = await Promise.all([
+    // Yahoo Finance API 호출 - v9.22: fundamentalsTimeSeries 추가 (분기 데이터 안정적 제공)
+    const [quote, quoteSummary, fundamentals] = await Promise.all([
       yahooFinance.quote(symbol),
       yahooFinance.quoteSummary(symbol, {
         modules: [
@@ -75,9 +75,15 @@ export async function GET(
           "incomeStatementHistoryQuarterly",
           "cashflowStatementHistory",
           "cashflowStatementHistoryQuarterly",
-          "balanceSheetHistoryQuarterly",  // v9.21: 분기별 부채비율 계산용
+          "balanceSheetHistoryQuarterly",
         ],
       }),
+      // v9.22: fundamentalsTimeSeries로 분기 재무제표 데이터 가져오기
+      yahooFinance.fundamentalsTimeSeries(symbol, {
+        period1: new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3년 전
+        period2: new Date().toISOString().split('T')[0],
+        type: 'quarterly',
+      }).catch(() => []), // 실패해도 빈 배열 반환
     ]);
 
     if (!quote) {
@@ -96,6 +102,15 @@ export async function GET(
     const cashflowQuarterly = quoteSummary.cashflowStatementHistoryQuarterly?.cashflowStatements || [];
     // v9.21: 분기별 대차대조표 (부채비율 계산용)
     const balanceSheetQuarterly = quoteSummary.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
+
+    // v9.22: fundamentalsTimeSeries에서 분기 데이터 추출
+    const fundamentalsData = Array.isArray(fundamentals) ? fundamentals : [];
+    
+    // fundamentalsTimeSeries 데이터를 분기별로 정리
+    const fundamentalsQuarterly = fundamentalsData
+      .filter((f: any) => f.date)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-8); // 최근 8분기
 
     // 기본 정보
     const basicInfo = {
@@ -154,8 +169,8 @@ export async function GET(
     }
 
     // 📊 연간 데이터 성장률 계산
-    // ⚠️ Yahoo Finance API가 2024.11월부터 incomeStatementHistory 데이터를 잘 안 줌
-    // → financialData를 fallback으로 사용
+    // v9.22: Yahoo Finance API가 2024.11월부터 incomeStatementHistory 데이터를 잘 안 줌
+    // → fundamentalsTimeSeries 또는 financialData를 fallback으로 사용
     let revenueGrowth: number | null = 0;
     let earningsGrowth: number | null = 0;
     let revenueCurrentYear = 0;
@@ -192,8 +207,32 @@ export async function GET(
       if (revenueCurrentYear === 0 && financialData?.totalRevenue) {
         revenueCurrentYear = financialData.totalRevenue;
       }
+    } else if (fundamentalsQuarterly.length >= 5) {
+      // v9.22: incomeHistory가 없으면 fundamentalsTimeSeries에서 연간 성장률 계산
+      // 최근 4분기 합산 vs 그 전 4분기 합산으로 YoY 계산
+      const recentFour = fundamentalsQuarterly.slice(-4);
+      const previousFour = fundamentalsQuarterly.slice(-8, -4);
+      
+      revenueCurrentYear = recentFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyTotalRevenue || f.totalRevenue || 0), 0);
+      revenuePreviousYear = previousFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyTotalRevenue || f.totalRevenue || 0), 0);
+      netIncomeCurrentYear = recentFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyNetIncome || f.netIncome || 0), 0);
+      netIncomePreviousYear = previousFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyNetIncome || f.netIncome || 0), 0);
+      
+      // 최신 분기 날짜로 연도 추출
+      const latestFundamentals = fundamentalsQuarterly[fundamentalsQuarterly.length - 1];
+      if (latestFundamentals?.date) {
+        latestFiscalYear = new Date(latestFundamentals.date).getFullYear().toString();
+        currentFiscalYear = latestFiscalYear;
+      }
+      
+      revenueGrowth = calculateGrowth(revenueCurrentYear, revenuePreviousYear);
+      earningsGrowth = calculateGrowth(netIncomeCurrentYear, netIncomePreviousYear);
     } else {
-      // ⚠️ incomeHistory가 없으면 financialData에서 가져오기 (API 변경 대응)
+      // ⚠️ 둘 다 없으면 financialData에서 가져오기
       revenueCurrentYear = financialData?.totalRevenue || 0;
       revenueGrowth = financialData?.revenueGrowth || null;
       earningsGrowth = financialData?.earningsGrowth || null;
@@ -206,18 +245,38 @@ export async function GET(
     isPreRevenueCompany = actualRevenue === 0;
 
     // 📈 분기별 추이 데이터 (최근 4분기)
-    const quarterlyTrend = incomeQuarterly.slice(0, 4).map((q: any) => {
-      const quarter = q.endDate ? new Date(q.endDate) : null;
-      const quarterLabel = quarter 
-        ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
-        : "N/A";
-      return {
-        quarter: quarterLabel,
-        revenue: q.totalRevenue || 0,
-        netIncome: q.netIncome || 0,
-        operatingIncome: q.operatingIncome || 0,
-      };
-    }).reverse(); // 오래된 순으로 정렬
+    // v9.22: incomeQuarterly가 비어있으면 fundamentalsTimeSeries 사용
+    let quarterlyTrend: { quarter: string; revenue: number; netIncome: number; operatingIncome: number }[] = [];
+    
+    if (incomeQuarterly.length > 0) {
+      // 기존 방식: incomeStatementHistoryQuarterly
+      quarterlyTrend = incomeQuarterly.slice(0, 4).map((q: any) => {
+        const quarter = q.endDate ? new Date(q.endDate) : null;
+        const quarterLabel = quarter 
+          ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+          : "N/A";
+        return {
+          quarter: quarterLabel,
+          revenue: q.totalRevenue || 0,
+          netIncome: q.netIncome || 0,
+          operatingIncome: q.operatingIncome || 0,
+        };
+      }).reverse();
+    } else if (fundamentalsQuarterly.length > 0) {
+      // v9.22: fundamentalsTimeSeries에서 분기 데이터 추출
+      quarterlyTrend = fundamentalsQuarterly.slice(-4).map((f: any) => {
+        const quarter = f.date ? new Date(f.date) : null;
+        const quarterLabel = quarter 
+          ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+          : "N/A";
+        return {
+          quarter: quarterLabel,
+          revenue: f.quarterlyTotalRevenue || f.totalRevenue || 0,
+          netIncome: f.quarterlyNetIncome || f.netIncome || 0,
+          operatingIncome: f.quarterlyOperatingIncome || f.operatingIncome || 0,
+        };
+      });
+    }
 
     // 🆕 분기별 성장률 계산 (전년 데이터 없을 때 대체용)
     let quarterlyGrowthSummary = "";
@@ -246,14 +305,20 @@ export async function GET(
       }
     }
     
-    // 분기별 YoY 성장률 (같은 분기 전년 대비) - incomeQuarterly에서 5분기 전 데이터가 있으면
+    // 분기별 YoY 성장률 (같은 분기 전년 대비)
+    // v9.22: fundamentalsTimeSeries에서도 YoY 계산 가능
     let quarterlyYoYGrowth: number | null = null;
-    if (incomeQuarterly.length >= 5) {
-      const latestQ = incomeQuarterly[0];
-      const sameQLastYear = incomeQuarterly[4]; // 4분기 전 = 작년 같은 분기
+    const quarterlyDataSource = incomeQuarterly.length > 0 ? incomeQuarterly : fundamentalsQuarterly;
+    
+    if (quarterlyDataSource.length >= 5) {
+      const latestQ = incomeQuarterly.length > 0 ? incomeQuarterly[0] : fundamentalsQuarterly[fundamentalsQuarterly.length - 1];
+      const sameQLastYear = incomeQuarterly.length > 0 ? incomeQuarterly[4] : fundamentalsQuarterly[fundamentalsQuarterly.length - 5];
       
-      if (latestQ?.totalRevenue > 0 && sameQLastYear?.totalRevenue > 0) {
-        quarterlyYoYGrowth = (latestQ.totalRevenue - sameQLastYear.totalRevenue) / sameQLastYear.totalRevenue;
+      const latestRevenue = latestQ?.totalRevenue || latestQ?.quarterlyTotalRevenue || 0;
+      const lastYearRevenue = sameQLastYear?.totalRevenue || sameQLastYear?.quarterlyTotalRevenue || 0;
+      
+      if (latestRevenue > 0 && lastYearRevenue > 0) {
+        quarterlyYoYGrowth = (latestRevenue - lastYearRevenue) / lastYearRevenue;
       }
     }
 
@@ -269,32 +334,61 @@ export async function GET(
       };
     }).reverse();
 
-    // v9.21: 분기별 부채비율 계산 (Total Debt / Total Equity)
-    const quarterlyDebtTrend = balanceSheetQuarterly.slice(0, 4).map((q: any) => {
-      const quarter = q.endDate ? new Date(q.endDate) : null;
-      const quarterLabel = quarter 
-        ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
-        : "N/A";
-      
-      // Total Debt = Short Term Debt + Long Term Debt
-      const shortTermDebt = q.shortLongTermDebt || q.shortTermDebt || 0;
-      const longTermDebt = q.longTermDebt || 0;
-      const totalDebt = shortTermDebt + longTermDebt;
-      const totalEquity = q.totalStockholderEquity || q.stockholdersEquity || 0;
-      
-      // 부채비율 계산 (자본이 0이면 null)
-      const debtToEquityQ = totalEquity > 0 ? totalDebt / totalEquity : null;
-      
-      return {
-        quarter: quarterLabel,
-        totalDebt,
-        totalEquity,
-        debtToEquity: debtToEquityQ,
-        currentRatio: q.totalCurrentAssets && q.totalCurrentLiabilities 
-          ? q.totalCurrentAssets / q.totalCurrentLiabilities 
-          : null,
-      };
-    }).reverse();
+    // v9.22: 분기별 부채비율 계산 (balanceSheetQuarterly 또는 fundamentalsTimeSeries 사용)
+    let quarterlyDebtTrend: { quarter: string; totalDebt: number; totalEquity: number; debtToEquity: number | null; currentRatio: number | null }[] = [];
+    
+    if (balanceSheetQuarterly.length > 0) {
+      // 기존 방식: balanceSheetHistoryQuarterly
+      quarterlyDebtTrend = balanceSheetQuarterly.slice(0, 4).map((q: any) => {
+        const quarter = q.endDate ? new Date(q.endDate) : null;
+        const quarterLabel = quarter 
+          ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+          : "N/A";
+        
+        const shortTermDebt = q.shortLongTermDebt || q.shortTermDebt || 0;
+        const longTermDebt = q.longTermDebt || 0;
+        const totalDebt = shortTermDebt + longTermDebt;
+        const totalEquity = q.totalStockholderEquity || q.stockholdersEquity || 0;
+        const debtToEquityQ = totalEquity > 0 ? totalDebt / totalEquity : null;
+        
+        return {
+          quarter: quarterLabel,
+          totalDebt,
+          totalEquity,
+          debtToEquity: debtToEquityQ,
+          currentRatio: q.totalCurrentAssets && q.totalCurrentLiabilities 
+            ? q.totalCurrentAssets / q.totalCurrentLiabilities 
+            : null,
+        };
+      }).reverse();
+    } else if (fundamentalsQuarterly.length > 0) {
+      // v9.22: fundamentalsTimeSeries에서 부채비율 데이터 추출
+      quarterlyDebtTrend = fundamentalsQuarterly.slice(-4).map((f: any) => {
+        const quarter = f.date ? new Date(f.date) : null;
+        const quarterLabel = quarter 
+          ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+          : "N/A";
+        
+        // fundamentalsTimeSeries 필드명
+        const totalDebt = f.quarterlyTotalDebt || f.totalDebt || 
+                          (f.quarterlyLongTermDebt || 0) + (f.quarterlyCurrentDebt || 0) || 0;
+        const totalEquity = f.quarterlyStockholdersEquity || f.stockholdersEquity || 
+                            f.quarterlyTotalEquityGrossMinorityInterest || 0;
+        const debtToEquityQ = totalEquity > 0 ? totalDebt / totalEquity : null;
+        
+        const currentAssets = f.quarterlyCurrentAssets || f.currentAssets || 0;
+        const currentLiabilities = f.quarterlyCurrentLiabilities || f.currentLiabilities || 0;
+        const currentRatioQ = currentLiabilities > 0 ? currentAssets / currentLiabilities : null;
+        
+        return {
+          quarter: quarterLabel,
+          totalDebt,
+          totalEquity,
+          debtToEquity: debtToEquityQ,
+          currentRatio: currentRatioQ,
+        };
+      });
+    }
 
     // 최신 분기 부채비율 (있으면 사용, 없으면 연간 데이터 사용)
     const latestQuarterDebt = quarterlyDebtTrend.length > 0 
