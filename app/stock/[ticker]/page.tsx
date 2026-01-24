@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
-import { ArrowLeft, Share2, ThumbsUp, ThumbsDown, TrendingUp, Landmark, Rocket, Gem, ChevronRight, Heart } from "lucide-react"
+import { useParams, useRouter } from "next/navigation"
+import { ArrowLeft, Share2, ThumbsUp, ThumbsDown, TrendingUp, Landmark, Rocket, Gem, ChevronRight, Heart, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -39,6 +39,66 @@ const statusColors = {
   red: { bg: "bg-[#EF4444]", text: "text-[#EF4444]", light: "bg-[#EF4444]/10" },
 }
 
+// ===== v9.20: 한국 주식 키워드 =====
+const koreanStockKeywords = [
+  '삼성', '하이닉스', '현대', 'LG', '네이버', '카카오',
+  '셀트리온', '삼바', 'SK', '포스코', '한화', '두산',
+  '고려아연', '동성케미컬', '한올', '에스피지', '기아',
+  '엔씨소프트', '크래프톤', '넥슨', '펄어비스', '카카오게임즈',
+  '쿠팡', '배달의민족', '토스', '야놀자', '직방',
+  '신한', '국민은행', 'KB', '우리은행', '하나은행'
+]
+
+const isKoreanStock = (query: string): boolean => {
+  const decoded = decodeURIComponent(query)
+  return koreanStockKeywords.some(keyword =>
+    decoded.toLowerCase().includes(keyword.toLowerCase())
+  )
+}
+
+// ===== v9.20: 유사 종목 추천용 매핑 =====
+const suggestionsMap: Record<string, { ticker: string; name: string }[]> = {
+  // 검색 실패가 많았던 종목들
+  "앱러빈": [{ ticker: "APP", name: "앱러빈" }],
+  "알리바바": [{ ticker: "BABA", name: "알리바바" }],
+  "샌디스크": [{ ticker: "SNDK", name: "샌디스크" }],
+  "비트마인": [{ ticker: "BMNR", name: "비트마인이머션테크놀로지스" }],
+  "비트": [{ ticker: "BMNR", name: "비트마인이머션테크놀로지스" }],
+  "나비타스": [{ ticker: "NVTS", name: "나비타스세미컨덕터" }],
+  "나비": [{ ticker: "NVTS", name: "나비타스세미컨덕터" }],
+  "네비우스": [{ ticker: "NBIS", name: "네비우스그룹" }],
+  "레드캣": [{ ticker: "RCAT", name: "레드캣홀딩스" }],
+  "업스타트": [{ ticker: "UPST", name: "업스타트홀딩스" }],
+  "셰니어": [{ ticker: "LNG", name: "셰니어에너지" }],
+  "쉐니어": [{ ticker: "LNG", name: "셰니어에너지" }],
+  "코크리스털": [{ ticker: "COCP", name: "코크리스털파마" }],
+  "코크": [{ ticker: "COCP", name: "코크리스털파마" }],
+  "보이저": [{ ticker: "VOYG", name: "보이저테크놀로지스" }],
+  "써클": [{ ticker: "CRCL", name: "써클인터넷그룹" }],
+  "뉴스케일": [{ ticker: "SMR", name: "뉴스케일파워" }],
+  "팔란티어": [{ ticker: "PLTR", name: "팔란티어" }],
+  "팔란이오": [{ ticker: "PLTR", name: "팔란티어" }],  // 오타 대응
+  "로켓": [{ ticker: "RKLB", name: "로켓랩" }],
+  "로켓램": [{ ticker: "RKLB", name: "로켓랩" }],  // 오타 대응
+  "리게티": [{ ticker: "RGTI", name: "리게티컴퓨팅" }],
+  "리겟티": [{ ticker: "RGTI", name: "리게티컴퓨팅" }],
+  "캐터필": [{ ticker: "CAT", name: "캐터필러" }],
+  "노던": [{ ticker: "NOG", name: "노던오일앤가스" }, { ticker: "NTRS", name: "노던트러스트" }],
+}
+
+// 유사 종목 찾기
+const findSuggestions = (query: string): { ticker: string; name: string }[] => {
+  const decoded = decodeURIComponent(query).toLowerCase()
+  
+  for (const [keyword, suggestions] of Object.entries(suggestionsMap)) {
+    if (decoded.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(decoded)) {
+      return suggestions
+    }
+  }
+  
+  return []
+}
+
 function LoadingSkeleton() {
   return (
     <div className="min-h-screen bg-background">
@@ -70,9 +130,18 @@ function LoadingSkeleton() {
   )
 }
 
+// ===== v9.20: ErrorState 개선 =====
 function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
+  const router = useRouter()
+  
   // URL 인코딩된 한글 디코딩
-  const decodedTicker = ticker ? decodeURIComponent(ticker) : null;
+  const decodedTicker = ticker ? decodeURIComponent(ticker) : null
+  
+  // v9.20: 한국 주식 여부 체크
+  const isKorean = decodedTicker ? isKoreanStock(decodedTicker) : false
+  
+  // v9.20: 유사 종목 추천
+  const suggestions = decodedTicker ? findSuggestions(decodedTicker) : []
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -88,23 +157,60 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
           <div className="w-10" />
         </div>
       </header>
-      <main className="flex-1 flex items-center justify-center px-4">
-        <div className="text-center space-y-4 max-w-sm">
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="text-center space-y-4 max-w-sm w-full">
           <div className="text-4xl">😅</div>
           <p className="text-foreground text-lg font-medium">
             {decodedTicker ? `"${decodedTicker}" 종목을 찾을 수 없어요` : "종목을 찾을 수 없어요"}
           </p>
-          <p className="text-muted-foreground text-sm">
-            한글명이 등록되지 않은 종목일 수 있어요
-          </p>
           
-          <div className="bg-muted/50 rounded-xl p-4 text-left space-y-2">
-            <p className="text-sm font-medium text-foreground">💡 이렇게 검색해보세요</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• 티커: <span className="text-foreground font-medium">NVDA, TSLA, MSFT</span></li>
-              <li>• 영문명: <span className="text-foreground font-medium">Nvidia, Tesla, Microsoft</span></li>
-            </ul>
-          </div>
+          {/* v9.20: 한국 주식 검색 시 안내 */}
+          {isKorean && (
+            <div className="bg-orange-50 dark:bg-orange-950 rounded-xl p-4 text-left">
+              <p className="text-sm font-medium text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                ⚠️ 미주도감은 <strong>미국 주식</strong>만 지원해요
+              </p>
+              <p className="text-xs text-orange-500 mt-2">
+                한국 주식은 네이버 증권, 키움증권 등을 이용해주세요
+              </p>
+            </div>
+          )}
+          
+          {/* v9.20: 유사 종목 추천 */}
+          {!isKorean && suggestions.length > 0 && (
+            <div className="bg-primary/5 rounded-xl p-4 text-left">
+              <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
+                <Search className="h-4 w-4" />
+                이 종목을 찾으셨나요?
+              </p>
+              <div className="space-y-2">
+                {suggestions.map((stock) => (
+                  <button
+                    key={stock.ticker}
+                    onClick={() => router.push(`/stock/${stock.ticker}`)}
+                    className="w-full px-4 py-3 bg-background rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-left flex items-center justify-between"
+                  >
+                    <div>
+                      <span className="font-semibold text-primary">{stock.ticker}</span>
+                      <span className="ml-2 text-muted-foreground">{stock.name}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* 기본 안내 (한국 주식도 아니고 유사 종목도 없을 때) */}
+          {!isKorean && suggestions.length === 0 && (
+            <div className="bg-muted/50 rounded-xl p-4 text-left space-y-2">
+              <p className="text-sm font-medium text-foreground">💡 이렇게 검색해보세요</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• 티커: <span className="text-foreground font-medium">NVDA, TSLA, MSFT</span></li>
+                <li>• 영문명: <span className="text-foreground font-medium">Nvidia, Tesla, Microsoft</span></li>
+              </ul>
+            </div>
+          )}
           
           <Link href="/">
             <Button className="w-full">다시 검색하기</Button>

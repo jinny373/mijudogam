@@ -64,7 +64,9 @@ const isKoreanStock = (query: string): boolean => {
   )
 }
 
-// 인기 종목 한글 매핑 (빠른 검색용) - 200개+
+// ===== v9.20: 한글 매핑 (완전형 이름 기준, 중복 제거) =====
+// 규칙: 하나의 티커에 하나의 완전형 이름만 매핑
+// 줄임말/별칭은 searchAliases에서 처리
 const koreanStockMap: Record<string, string> = {
   // ===== 빅테크 (Mag 7) =====
   "엔비디아": "NVDA",
@@ -101,7 +103,7 @@ const koreanStockMap: Record<string, string> = {
   
   // ===== AI/클라우드/소프트웨어 =====
   "팔란티어": "PLTR",
-  "팔란이오": "PLTR",
+  // "팔란이오" 삭제 - 틀린 이름
   "스노우플레이크": "SNOW",
   "데이터독": "DDOG",
   "크라우드스트라이크": "CRWD",
@@ -114,7 +116,6 @@ const koreanStockMap: Record<string, string> = {
   "서비스나우": "NOW",
   "워크데이": "WDAY",
   "몽고디비": "MDB",
-  "몽고DB": "MDB",
   "엘라스틱": "ESTC",
   "지스케일러": "ZS",
   "포티넷": "FTNT",
@@ -150,16 +151,12 @@ const koreanStockMap: Record<string, string> = {
   
   // ===== 원자력/SMR/유틸리티 =====
   "뉴스케일파워": "SMR",
-  "뉴스케일": "SMR",
   "오클로": "OKLO",
   "센트러스에너지": "LEU",
   "카메코": "CCJ",
   "우라늄에너지": "UEC",
-  "컨스털레이션": "CEG",
   "컨스털레이션에너지": "CEG",
-  "비스트라": "VST",
   "비스트라에너지": "VST",
-  "넥스트에라": "NEE",
   "넥스트에라에너지": "NEE",
   "서던컴퍼니": "SO",
   "듀크에너지": "DUK",
@@ -180,13 +177,9 @@ const koreanStockMap: Record<string, string> = {
   "아메리칸타워": "AMT",
   "크라운캐슬": "CCI",
   "아스테라랩스": "ALAB",
-  "아스테라 랩스": "ALAB",
-  "아스테라": "ALAB",
   
   // ===== 양자컴퓨터 =====
   "아이온큐": "IONQ",
-  "리겟티": "RGTI",
-  "리게티": "RGTI",
   "리게티컴퓨팅": "RGTI",
   "디웨이브": "QBTS",
   
@@ -271,7 +264,6 @@ const koreanStockMap: Record<string, string> = {
   
   // ===== 금융 =====
   "버크셔해서웨이": "BRK-B",
-  "JP모건": "JPM",
   "제이피모건": "JPM",
   "골드만삭스": "GS",
   "모건스탠리": "MS",
@@ -307,14 +299,13 @@ const koreanStockMap: Record<string, string> = {
   "L3해리스": "LHX",
   "헌팅턴잉걸스": "HII",
   "로켓랩": "RKLB",
-  "로켓": "RKLB",
-  "로켓램": "RKLB",
+  // "로켓", "로켓램" 삭제 - 줄임말/오타는 별칭에서 처리
   "버진갤럭틱": "SPCE",
   "플래닛랩스": "PL",
 
   // ===== 산업재/장비 =====
   "캐터필러": "CAT",
-  "캐터필": "CAT",
+  // "캐터필" 삭제 - 줄임말은 별칭에서 처리
   "디어": "DE",
   "존디어": "DE",
   "허니웰": "HON",
@@ -322,7 +313,6 @@ const koreanStockMap: Record<string, string> = {
   "3M": "MMM",
   "유니온퍼시픽": "UNP",
   "유피에스": "UPS",
-  "UPS": "UPS",
   "페덱스": "FDX",
 
   // 소재
@@ -336,64 +326,115 @@ const koreanStockMap: Record<string, string> = {
   "리얼티인컴": "O",
 
   // 기타 인기 종목
-  "팔로알토": "PANW",
   "팔로알토네트웍스": "PANW",
 
-  // ===== v9.20 추가: 검색 실패 종목 매핑 =====
+  // ===== v9.20: 검색 실패 종목 매핑 (완전형만) =====
   "앱러빈": "APP",
   "알리바바": "BABA",
   "샌디스크": "SNDK",
+  "비트마인이머션테크놀로지스": "BMNR",  // 완전형만
+  "나비타스세미컨덕터": "NVTS",  // 완전형만
+  "네비우스그룹": "NBIS",  // 완전형만
+  "레드캣홀딩스": "RCAT",  // 완전형만
+  "업스타트홀딩스": "UPST",  // 완전형만
+  "셰니어에너지": "LNG",  // 완전형만
+  "코크리스털파마": "COCP",  // 완전형만
+  "보이저테크놀로지스": "VOYG",  // 완전형만
+  "써클인터넷그룹": "CRCL",
+  "이오스에너지": "EOSE",
+  "노던오일앤가스": "NOG",
+  "노던트러스트": "NTRS",
+  "노던다이너스티미네랄스": "NAK",
+}
+
+// ===== v9.20: 검색용 별칭 (줄임말, 오타 등) =====
+// findSimilarStocks에서 사용 - 자동완성에는 안 뜨고 추천에만 사용
+const searchAliases: Record<string, string> = {
+  // 줄임말
+  "뉴스케일": "SMR",
+  "컨스털레이션": "CEG",
+  "비스트라": "VST",
+  "넥스트에라": "NEE",
+  "리겟티": "RGTI",
+  "리게티": "RGTI",
+  "아스테라": "ALAB",
+  "로켓": "RKLB",
+  "캐터필": "CAT",
+  "팔로알토": "PANW",
+  
+  // 검색 실패 종목 줄임말
   "비트마인": "BMNR",
-  "비트마인이머션": "BMNR",
   "나비타스": "NVTS",
-  "나비타스세미컨덕터": "NVTS",
   "네비우스": "NBIS",
-  "네비우스그룹": "NBIS",
   "레드캣": "RCAT",
-  "레드캣홀딩스": "RCAT",
   "업스타트": "UPST",
-  "업스타트홀딩스": "UPST",
   "셰니어": "LNG",
   "쉐니어": "LNG",
-  "셰니어에너지": "LNG",
   "코크리스털": "COCP",
-  "코크리스털파마": "COCP",
   "보이저": "VOYG",
-  "보이저테크놀로지스": "VOYG",
   "써클": "CRCL",
   "이오스": "EOSE",
   "노던": "NOG",
-  "노던다이": "NOG",
+  
+  // 흔한 오타/변형
+  "JP모건": "JPM",
+  "몽고DB": "MDB",
+  "UPS": "UPS",
 }
 
-// ===== v9.20 추가: 유사 종목 찾기 =====
+// 티커 → 완전형 이름 역매핑 (유사 종목 추천용)
+const getFullNameByTicker = (ticker: string): string | null => {
+  for (const [name, t] of Object.entries(koreanStockMap)) {
+    if (t === ticker) return name
+  }
+  return null
+}
+
+// ===== v9.20: 유사 종목 찾기 (개선) =====
 const findSimilarStocks = (query: string): { ticker: string; name: string }[] => {
   const normalizedQuery = query.toLowerCase().replace(/\s/g, '')
   const suggestions: { ticker: string; name: string; score: number }[] = []
+  const seenTickers = new Set<string>()
 
+  // 1. koreanStockMap에서 검색 (완전형 이름)
   for (const [korean, ticker] of Object.entries(koreanStockMap)) {
     const normalizedKorean = korean.toLowerCase().replace(/\s/g, '')
-
-    // 포함 관계 체크
+    
     if (normalizedKorean.includes(normalizedQuery) ||
         normalizedQuery.includes(normalizedKorean)) {
-      suggestions.push({
-        ticker,
-        name: korean,
-        score: normalizedKorean === normalizedQuery ? 100 : 50
-      })
+      if (!seenTickers.has(ticker)) {
+        suggestions.push({
+          ticker,
+          name: korean,
+          score: normalizedKorean === normalizedQuery ? 100 : 
+                 normalizedKorean.startsWith(normalizedQuery) ? 80 : 50
+        })
+        seenTickers.add(ticker)
+      }
     }
   }
 
-  // 중복 티커 제거 후 상위 3개
-  const uniqueTickers = new Set<string>()
+  // 2. searchAliases에서 검색 (줄임말/오타)
+  for (const [alias, ticker] of Object.entries(searchAliases)) {
+    const normalizedAlias = alias.toLowerCase().replace(/\s/g, '')
+    
+    if (normalizedAlias.includes(normalizedQuery) ||
+        normalizedQuery.includes(normalizedAlias)) {
+      if (!seenTickers.has(ticker)) {
+        const fullName = getFullNameByTicker(ticker) || alias
+        suggestions.push({
+          ticker,
+          name: fullName,
+          score: normalizedAlias === normalizedQuery ? 90 : 40
+        })
+        seenTickers.add(ticker)
+      }
+    }
+  }
+
+  // 점수순 정렬 후 상위 3개
   return suggestions
     .sort((a, b) => b.score - a.score)
-    .filter(item => {
-      if (uniqueTickers.has(item.ticker)) return false
-      uniqueTickers.add(item.ticker)
-      return true
-    })
     .slice(0, 3)
     .map(({ ticker, name }) => ({ ticker, name }))
 }
@@ -431,9 +472,15 @@ export function StockSearchForm() {
       return
     }
 
-    // 한글 매핑 체크 (즉시 결과)
+    // v9.20: 한글 매핑 체크 (중복 티커 제거)
+    const seenTickers = new Set<string>()
     const koreanMatches = Object.entries(koreanStockMap)
       .filter(([korean]) => korean.includes(searchQuery))
+      .filter(([_, ticker]) => {
+        if (seenTickers.has(ticker)) return false
+        seenTickers.add(ticker)
+        return true
+      })
       .map(([korean, ticker]) => ({
         ticker,
         name: korean,
@@ -537,6 +584,13 @@ export function StockSearchForm() {
     const mappedTicker = koreanStockMap[query.trim()]
     if (mappedTicker) {
       handleSelectStock(mappedTicker)
+      return
+    }
+
+    // 별칭 체크
+    const aliasTicker = searchAliases[query.trim()]
+    if (aliasTicker) {
+      handleSelectStock(aliasTicker)
       return
     }
 
