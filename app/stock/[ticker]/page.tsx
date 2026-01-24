@@ -371,7 +371,7 @@ export default function StockDetailPage() {
     <div className="min-h-screen bg-background">
       {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+        <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Link href="/">
             <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0">
               <ArrowLeft className="h-5 w-5" />
@@ -380,25 +380,24 @@ export default function StockDetailPage() {
           </Link>
           {/* 검색바 */}
           <div 
-            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
+            className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
             onClick={() => window.location.href = '/?focus=search'}
           >
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">다른 종목 검색...</span>
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-muted-foreground truncate">종목 검색</span>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <Link 
-              href="/watchlist"
-              className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors"
-              title="관심 종목"
-            >
-              <Heart className="h-5 w-5 fill-current" />
-            </Link>
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={handleShare}>
-              <Share2 className="h-5 w-5" />
-              <span className="sr-only">공유하기</span>
-            </Button>
-          </div>
+          {/* 관심종목 페이지 이동 버튼 - 홈과 동일한 스타일 */}
+          <Link 
+            href="/watchlist"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-xs font-medium flex-shrink-0"
+          >
+            <Heart className="h-3.5 w-3.5 fill-current" />
+            <span>관심</span>
+          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={handleShare}>
+            <Share2 className="h-5 w-5" />
+            <span className="sr-only">공유하기</span>
+          </Button>
         </div>
       </header>
 
