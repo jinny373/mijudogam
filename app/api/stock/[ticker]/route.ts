@@ -538,9 +538,20 @@ export async function GET(
       ] : undefined,
     };
 
-    // 🏦 빚 관리 - v9.21: 분기 데이터 우선 표시
+    // 🏦 빚 관리 - v9.22: financialData.debtToEquity는 mrq(최근 분기) 값
+    // Yahoo Finance의 debtToEquity, currentRatio는 이미 최근 분기 기준!
     const displayDebtToEquity = hasQuarterlyDebtData ? latestQuarterDebtToEquity : debtToEquity;
     const displayCurrentRatio = hasQuarterlyDebtData ? latestQuarterCurrentRatio : currentRatio;
+    
+    // 최신 분기 라벨 결정 (quarterlyTrend에서 가져오거나, 현재 날짜 기준)
+    const latestQuarterFromTrend = quarterlyTrend.length > 0 
+      ? quarterlyTrend[quarterlyTrend.length - 1].quarter 
+      : null;
+    const currentQuarterLabel = latestQuarterFromTrend || `${new Date().getFullYear()}Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
+    
+    // v9.22: financialData는 mrq(최근 분기) 기준이므로, 분기 라벨로 표시
+    const debtQuarterLabel = hasQuarterlyDebtData ? latestDebtQuarterLabel : currentQuarterLabel;
+    const isDebtDataFromMRQ = !hasQuarterlyDebtData && debtToEquity > 0; // financialData에서 왔으면 mrq
     
     const debtManagement = {
       id: "debt",
@@ -555,17 +566,19 @@ export async function GET(
           : "빚이 많은 편이에요",
       mainValue: formatPercentNoSign(displayDebtToEquity, "데이터 없음"),
       mainLabel: "부채비율",
-      // v9.21: 분기 데이터 있으면 분기 기준으로 표시
-      average: hasQuarterlyDebtData 
-        ? `${latestDebtQuarterLabel} 기준`
-        : `${latestFiscalYear}년 재무제표 기준`,
+      // v9.22: financialData는 mrq(최근 분기) 기준
+      average: isDebtDataFromMRQ 
+        ? `${debtQuarterLabel} 기준 (최근 분기)`
+        : (hasQuarterlyDebtData 
+            ? `${latestDebtQuarterLabel} 기준`
+            : `${latestFiscalYear}년 재무제표 기준`),
       metrics: [
         {
           name: "부채비율 (빚 ÷ 자본)",
           description: "💡 내 돈 대비 빚이 얼마나 있나? 낮을수록 안전",
           value: formatPercentNoSign(displayDebtToEquity, "데이터 없음"),
           status: getStatus(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false),
-          benchmark: hasQuarterlyDebtData ? `📅 ${latestDebtQuarterLabel}` : `📅 ${latestFiscalYear}년 연간`,
+          benchmark: isDebtDataFromMRQ ? `📅 ${debtQuarterLabel} (최근 분기)` : (hasQuarterlyDebtData ? `📅 ${latestDebtQuarterLabel}` : `📅 ${latestFiscalYear}년 연간`),
           interpretation: `${displayDebtToEquity < 0.3 ? "우수 (30%↓)" : displayDebtToEquity < 0.5 ? "양호 (50%↓)" : displayDebtToEquity < 1 ? "보통 (100%↓)" : "높음 (100%↑)"}`,
         },
         {
@@ -573,11 +586,11 @@ export async function GET(
           description: "💡 1년 내 갚을 빚 대비 현금 여유. 1배 이상 필요",
           value: formatRatio(displayCurrentRatio, "데이터 없음"),
           status: getStatus(displayCurrentRatio, { good: 1.5, bad: 1 }, true),
-          benchmark: hasQuarterlyDebtData ? `📅 ${latestDebtQuarterLabel}` : `📅 ${latestFiscalYear}년 연간`,
+          benchmark: isDebtDataFromMRQ ? `📅 ${debtQuarterLabel} (최근 분기)` : (hasQuarterlyDebtData ? `📅 ${latestDebtQuarterLabel}` : `📅 ${latestFiscalYear}년 연간`),
           interpretation: `${displayCurrentRatio > 2 ? "우수 (2배↑)" : displayCurrentRatio > 1.5 ? "양호 (1.5배↑)" : displayCurrentRatio > 1 ? "보통 (1배↑)" : "주의 (1배↓)"}`,
         },
-        // v9.21: 분기별 부채 추이 (데이터 있으면 표시)
-        ...(quarterlyDebtTrend.length >= 2 ? [{
+        // v9.22: 분기별 부채 추이 - 데이터 없으면 표시 안 함
+        ...(quarterlyDebtTrend.length >= 2 && quarterlyDebtTrend.some(q => q.debtToEquity !== null) ? [{
           name: "📈 분기별 부채비율 추이",
           description: "💡 최근 4분기 부채 변화. 감소 추세면 좋아요",
           value: quarterlyDebtTrend.map(q => q.quarter.replace(/^\d{4}/, "'" + q.quarter.slice(2, 4))).join(' → '),
@@ -593,8 +606,8 @@ export async function GET(
               : "비슷한 수준 유지",
         }] : []),
       ],
-      // v9.21: 분기별 부채 추이 (차트용)
-      quarterlyTrend: quarterlyDebtTrend.length > 0 ? {
+      // v9.22: 분기별 부채 추이 - 유효한 데이터 있을 때만
+      quarterlyTrend: quarterlyDebtTrend.length > 0 && quarterlyDebtTrend.some(q => q.debtToEquity !== null) ? {
         label: "최근 4분기 부채비율 추이",
         data: quarterlyDebtTrend.map(q => ({
           quarter: q.quarter,
@@ -829,7 +842,12 @@ export async function GET(
           description: "💡 1년간 총 판매 금액. 기업 규모 파악용",
           value: actualRevenue > 0 ? formatCurrency(actualRevenue) : "아직 매출 없음",
           status: actualRevenue > 0 ? "green" : "red",
-          benchmark: revenuePreviousYear > 0 ? `전년: ${formatCurrency(revenuePreviousYear)}` : "전년 데이터 없음",
+          // v9.22: 분기 데이터로 계산 가능하면 표시
+          benchmark: revenuePreviousYear > 0 
+            ? `전년: ${formatCurrency(revenuePreviousYear)}` 
+            : (hasUsableQuarterlyData 
+                ? `📊 분기 추이로 확인하세요` 
+                : "신규 상장/분사 기업"),
           interpretation: actualRevenue > 0 
             ? `${dataYearLabel} 총 매출`
             : "연구개발 단계 기업",
