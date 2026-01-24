@@ -17,9 +17,9 @@ const statusDots: Record<string, string> = {
 interface StockData {
   ticker: string
   name: string
-  price: number
-  change: number
-  changePercent: number
+  price: number | { raw?: number; fmt?: string }
+  change: number | { raw?: number; fmt?: string }
+  changePercent: number | { raw?: number; fmt?: string }
   aiSummary: string
   metrics: {
     id: string
@@ -30,6 +30,20 @@ interface StockData {
     mainLabel: string
     summary: string
   }[]
+}
+
+// 안전하게 문자열로 변환
+const safeString = (value: any): string => {
+  if (value === null || value === undefined) return "-"
+  if (typeof value === "string") return value
+  if (typeof value === "number") return String(value)
+  if (typeof value === "object") {
+    // Yahoo Finance 형태: { raw: 123.45, fmt: "123.45" }
+    if (value.fmt) return String(value.fmt)
+    if (value.raw !== undefined) return String(value.raw)
+    return "-"
+  }
+  return "-"
 }
 
 export default function WatchlistPage() {
@@ -154,6 +168,8 @@ export default function WatchlistPage() {
             {/* 종목 카드들 */}
             {watchlist.map((item) => {
               const data = stockData[item.ticker]
+              // aiSummary를 안전하게 문자열로 변환
+              const aiSummaryText = data?.aiSummary ? safeString(data.aiSummary) : null
 
               return (
                 <div key={item.ticker} className="relative">
@@ -179,7 +195,7 @@ export default function WatchlistPage() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-primary">{item.ticker}</span>
-                        <span className="text-sm text-foreground">{item.name}</span>
+                        <span className="text-sm text-foreground">{safeString(item.name)}</span>
                       </div>
                       {!isEditMode && (
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -187,9 +203,9 @@ export default function WatchlistPage() {
                     </div>
 
                     {/* 한 줄 요약 */}
-                    {data?.aiSummary && (
+                    {aiSummaryText && aiSummaryText !== "-" && (
                       <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
-                        {data.aiSummary}
+                        {aiSummaryText}
                       </p>
                     )}
 
@@ -198,8 +214,8 @@ export default function WatchlistPage() {
                       {metricInfo.map((info) => {
                         const metric = getMetric(item.ticker, info.id)
                         const status = metric?.status || "yellow"
-                        // summary 사용 (핵심체크 문장)
-                        const summaryText = metric?.summary || "-"
+                        // summary 사용 (핵심체크 문장) - 안전하게 변환
+                        const summaryText = safeString(metric?.summary)
 
                         return (
                           <div 
