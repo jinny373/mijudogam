@@ -166,11 +166,18 @@ function QuarterlyTrendCard({ metric }: { metric: any }) {
           })}
         </div>
         
-        {/* 하단: 기준 기간 */}
-        {periodLabel && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t">
-            <span>📅</span>
-            <span>{periodLabel}</span>
+        {/* 하단: 기준 기간 + 해석 */}
+        {(periodLabel || metric.summaryText) && (
+          <div className="flex items-center justify-between text-xs pt-2 border-t">
+            {periodLabel && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <span>📅</span>
+                <span>{periodLabel}</span>
+              </div>
+            )}
+            {metric.summaryText && (
+              <span className="font-medium text-foreground">{metric.summaryText}</span>
+            )}
           </div>
         )}
       </Card>

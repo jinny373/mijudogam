@@ -245,6 +245,33 @@ export async function GET(
         const turnedProfitable = wasPreviouslyLoss && !isCurrentlyLoss;
         const lossExpanded = wasPreviouslyLoss && isCurrentlyLoss && netIncomeCurrentYear < netIncomePreviousYear;
         
+        // v9.22: 분기별 순이익 추이 계산
+        const quarterlyNetIncomeTrend = quarterlyTrend.map((q: any, i: number) => {
+          const prev = i > 0 ? quarterlyTrend[i - 1] : null;
+          let growth: string | null = null;
+          if (prev && prev.netIncome !== 0 && q.netIncome !== 0) {
+            // 적자→흑자 또는 흑자→적자는 특별 처리
+            if (prev.netIncome < 0 && q.netIncome > 0) {
+              growth = "흑자전환";
+            } else if (prev.netIncome > 0 && q.netIncome < 0) {
+              growth = "적자전환";
+            } else if (prev.netIncome > 0) {
+              const rate = ((q.netIncome - prev.netIncome) / prev.netIncome) * 100;
+              growth = rate >= 0 ? `+${rate.toFixed(0)}%` : `${rate.toFixed(0)}%`;
+            }
+          }
+          return {
+            quarter: q.quarter,
+            value: q.netIncome,
+            growth,
+          };
+        });
+        
+        // 최신 분기 순이익 성장률
+        const latestNetIncomeGrowth = quarterlyNetIncomeTrend.length > 0 
+          ? quarterlyNetIncomeTrend[quarterlyNetIncomeTrend.length - 1].growth 
+          : null;
+        
         // v9.22: 분기 데이터 우선 사용
         const getGrowthStatusText = () => {
           if (isPreRevenueCompany) return "연구개발 단계";
@@ -281,29 +308,15 @@ export async function GET(
           return "성장이 멈췄거나 역성장 중이에요";
         };
         
-        const getEarningsDisplay = () => {
-          if (!hasEarningsGrowthData) return "데이터 없음";
-          if (turnedProfitable) return `흑자 전환! (${formatCurrency(netIncomeCurrentYear)})`;
-          if (lossExpanded) return `적자 확대 (${formatCurrency(netIncomePreviousYear)} → ${formatCurrency(netIncomeCurrentYear)})`;
-          return formatPercent(earningsGrowthValue);
-        };
-        
-        const getEarningsInterpretation = () => {
-          if (!hasEarningsGrowthData) return "데이터가 부족해요";
-          if (turnedProfitable) return "🎉 흑자 전환 성공!";
-          if (lossExpanded) return `⚠️ 적자가 ${formatCurrency(netIncomePreviousYear)}에서 ${formatCurrency(netIncomeCurrentYear)}로 확대됐어요`;
-          if (isCurrentlyLoss) return "아직 적자 상태예요";
-          if (earningsGrowthValue > 1) return "이익 2배 이상 급증!";
-          if (earningsGrowthValue > 0) return "이익 증가 중";
-          return "이익 감소 중";
-        };
-        
-        const getEarningsStatus = () => {
-          if (!hasEarningsGrowthData) return "yellow";
-          if (turnedProfitable) return "green";
-          if (lossExpanded) return "red";
-          if (isCurrentlyLoss) return "yellow";
-          return getStatus(earningsGrowthValue, { good: 0.15, bad: 0 }, true);
+        // 매출 성장률 해석 문구
+        const getRevenueInterpretation = () => {
+          if (latestQoQGrowth === null) return "데이터 부족";
+          if (latestQoQGrowth > 0.3) return "🔥 폭발적 성장!";
+          if (latestQoQGrowth > 0.2) return "🚀 빠르게 성장 중!";
+          if (latestQoQGrowth > 0.1) return "📈 꾸준히 성장 중";
+          if (latestQoQGrowth > 0) return "소폭 성장";
+          if (latestQoQGrowth > -0.1) return "성장 정체";
+          return "📉 역성장";
         };
         
         // v9.22: 분기 데이터 우선 표시
@@ -314,10 +327,11 @@ export async function GET(
           growthMetrics.push({
             name: "📈 분기별 매출 추이",
             description: "💡 최근 4분기 매출 흐름. 성장세를 직접 확인!",
-            value: quarterlyTrend.map(q => q.quarter.replace(/^\d{4}/, "'" + q.quarter.slice(2, 4))).join(' → '),
+            value: quarterlyTrend.map((q: any) => q.quarter.replace(/^\d{4}/, "'" + q.quarter.slice(2, 4))).join(' → '),
             status: latestQoQGrowth !== null ? (latestQoQGrowth > 0.1 ? "green" : latestQoQGrowth > 0 ? "yellow" : "red") : "yellow",
-            benchmark: quarterlyTrend.map(q => formatCurrency(q.revenue, "-")).join(' → '),
+            benchmark: quarterlyTrend.map((q: any) => formatCurrency(q.revenue, "-")).join(' → '),
             interpretation: `성장률: ${quarterlyGrowthRates.join(' → ')}`,
+            summaryText: getRevenueInterpretation(), // v9.22: 해석 문구 추가
           });
         } else {
           growthMetrics.push({ 
@@ -330,15 +344,72 @@ export async function GET(
           });
         }
         
-        // 순이익 추이
-        growthMetrics.push({ 
-          name: "순이익 추이", 
-          description: "💡 최종 이익이 늘고 있나?",
-          value: getEarningsDisplay(), 
-          status: getEarningsStatus(), 
-          benchmark: hasEarningsGrowthData ? `📅 ${growthYearLabel}` : "전년 데이터 없음", 
-          interpretation: getEarningsInterpretation() 
-        });
+        // v9.22: 순이익 추이도 분기별로!
+        if (quarterlyNetIncomeTrend.length >= 2) {
+          // 분기별 순이익 성장률 계산
+          const netIncomeGrowthRates = quarterlyNetIncomeTrend
+            .slice(1)
+            .map((q: any) => q.growth || "-")
+            .filter((g: string) => g !== "-");
+          
+          // 최신 순이익 상태 판단
+          const latestNetIncome = quarterlyNetIncomeTrend[quarterlyNetIncomeTrend.length - 1].value;
+          const prevNetIncome = quarterlyNetIncomeTrend[quarterlyNetIncomeTrend.length - 2]?.value || 0;
+          
+          const getNetIncomeInterpretation = () => {
+            if (prevNetIncome < 0 && latestNetIncome > 0) return "🎉 흑자 전환 성공!";
+            if (prevNetIncome > 0 && latestNetIncome < 0) return "⚠️ 적자 전환";
+            if (latestNetIncome < 0) return "적자 지속 중";
+            if (latestNetIncome > prevNetIncome * 2) return "🔥 이익 급증!";
+            if (latestNetIncome > prevNetIncome) return "📈 이익 증가 중";
+            return "이익 감소 중";
+          };
+          
+          growthMetrics.push({
+            name: "📊 분기별 순이익 추이",
+            description: "💡 최근 4분기 순이익 흐름. 흑자/적자 추이 확인!",
+            value: quarterlyNetIncomeTrend.map((q: any) => q.quarter.replace(/^\d{4}/, "'" + q.quarter.slice(2, 4))).join(' → '),
+            status: latestNetIncome > 0 ? "green" : latestNetIncome < 0 ? "red" : "yellow",
+            benchmark: quarterlyNetIncomeTrend.map((q: any) => formatCurrency(q.value, "-")).join(' → '),
+            interpretation: netIncomeGrowthRates.length > 0 ? `성장률: ${netIncomeGrowthRates.join(' → ')}` : "성장률 계산 불가",
+            summaryText: getNetIncomeInterpretation(), // v9.22: 해석 문구 추가
+          });
+        } else {
+          // 분기 데이터 없으면 연간으로 폴백
+          const getEarningsDisplay = () => {
+            if (!hasEarningsGrowthData) return "데이터 없음";
+            if (turnedProfitable) return `흑자 전환! (${formatCurrency(netIncomeCurrentYear)})`;
+            if (lossExpanded) return `적자 확대 (${formatCurrency(netIncomePreviousYear)} → ${formatCurrency(netIncomeCurrentYear)})`;
+            return formatPercent(earningsGrowthValue);
+          };
+          
+          const getEarningsInterpretation = () => {
+            if (!hasEarningsGrowthData) return "데이터가 부족해요";
+            if (turnedProfitable) return "🎉 흑자 전환 성공!";
+            if (lossExpanded) return `⚠️ 적자 확대`;
+            if (isCurrentlyLoss) return "아직 적자 상태예요";
+            if (earningsGrowthValue > 1) return "이익 2배 이상 급증!";
+            if (earningsGrowthValue > 0) return "이익 증가 중";
+            return "이익 감소 중";
+          };
+          
+          const getEarningsStatus = () => {
+            if (!hasEarningsGrowthData) return "yellow";
+            if (turnedProfitable) return "green";
+            if (lossExpanded) return "red";
+            if (isCurrentlyLoss) return "yellow";
+            return getStatus(earningsGrowthValue, { good: 0.15, bad: 0 }, true);
+          };
+          
+          growthMetrics.push({ 
+            name: "순이익 추이", 
+            description: "💡 최종 이익이 늘고 있나?",
+            value: getEarningsDisplay(), 
+            status: getEarningsStatus(), 
+            benchmark: hasEarningsGrowthData ? `📅 ${growthYearLabel}` : "전년 데이터 없음", 
+            interpretation: getEarningsInterpretation() 
+          });
+        }
         
         // 연간 매출 또는 연간 성장률
         if (hasRevenueGrowthData) {
