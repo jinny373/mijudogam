@@ -83,6 +83,7 @@ export async function GET(
         period1: new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3년 전
         period2: new Date().toISOString().split('T')[0],
         type: 'quarterly',
+        module: 'all',  // 필수 파라미터!
       }).catch(() => []), // 실패해도 빈 배열 반환
     ]);
 
