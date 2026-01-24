@@ -1,8 +1,6 @@
-// 관심종목 유틸리티
-import { supabase } from "./supabase"
+// 관심종목 관리 유틸리티
 
 const WATCHLIST_KEY = "mijudogam_watchlist"
-const MAX_WATCHLIST = 20
 
 export interface WatchlistItem {
   ticker: string
@@ -10,89 +8,87 @@ export interface WatchlistItem {
   addedAt: number
 }
 
-// 이벤트 로깅 (Supabase events 테이블에 저장)
-export const logWatchlistEvent = async (event: string, data?: Record<string, any>) => {
-  const logData = {
-    event,
-    timestamp: new Date().toISOString(),
-    ...data,
-  }
-  console.log("[Watchlist Event]", logData)
-  
-  // Supabase events 테이블에 저장
-  try {
-    await supabase.from('events').insert({
-      event_name: event,
-      event_data: data || {},
-      page_path: typeof window !== 'undefined' ? window.location.pathname : null
-    })
-  } catch (error) {
-    console.error('Event logging error:', error)
-  }
-}
-
-// 관심종목 불러오기
-export const getWatchlist = (): WatchlistItem[] => {
+// 관심종목 목록 가져오기 (잘못된 데이터 자동 정리)
+export function getWatchlist(): WatchlistItem[] {
   if (typeof window === "undefined") return []
   try {
     const stored = localStorage.getItem(WATCHLIST_KEY)
-    return stored ? JSON.parse(stored) : []
+    if (!stored) return []
+    
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem(WATCHLIST_KEY)
+      return []
+    }
+    
+    // 잘못된 데이터 필터링 (ticker가 객체인 경우 등)
+    const cleaned = parsed.filter((item: any) => {
+      // ticker가 문자열이어야 함
+      if (!item || typeof item.ticker !== "string") return false
+      return true
+    }).map((item: any) => ({
+      ticker: String(item.ticker),
+      name: typeof item.name === "string" ? item.name : item.ticker,
+      addedAt: item.addedAt || Date.now(),
+    }))
+    
+    // 정리된 데이터가 원본과 다르면 저장
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(cleaned))
+      console.log("[Watchlist] 잘못된 데이터 정리됨:", parsed.length - cleaned.length, "개 제거")
+    }
+    
+    return cleaned
   } catch {
+    // 파싱 에러 시 초기화
+    localStorage.removeItem(WATCHLIST_KEY)
     return []
   }
 }
 
-// 관심종목 추가
-export const addToWatchlist = (ticker: string, name: string): boolean => {
-  if (typeof window === "undefined") return false
-  try {
-    const watchlist = getWatchlist()
-    if (watchlist.some((s) => s.ticker === ticker)) return false
-    if (watchlist.length >= MAX_WATCHLIST) return false
-    
-    const updated = [{ ticker, name, addedAt: Date.now() }, ...watchlist]
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated))
-    
-    logWatchlistEvent("watchlist_add", { ticker, name })
-    return true
-  } catch {
-    return false
-  }
+// 관심종목에 있는지 확인
+export function isInWatchlist(ticker: string): boolean {
+  const watchlist = getWatchlist()
+  return watchlist.some(item => item.ticker.toUpperCase() === ticker.toUpperCase())
 }
 
-// 관심종목 제거
-export const removeFromWatchlist = (ticker: string): boolean => {
-  if (typeof window === "undefined") return false
-  try {
-    const watchlist = getWatchlist()
-    const updated = watchlist.filter((s) => s.ticker !== ticker)
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated))
-    
-    logWatchlistEvent("watchlist_remove", { ticker })
-    return true
-  } catch {
-    return false
-  }
-}
-
-// 관심종목 여부 확인
-export const isInWatchlist = (ticker: string): boolean => {
-  if (typeof window === "undefined") return false
-  try {
-    const watchlist = getWatchlist()
-    return watchlist.some((s) => s.ticker === ticker)
-  } catch {
-    return false
-  }
-}
-
-// 관심종목 토글
-export const toggleWatchlist = (ticker: string, name: string): boolean => {
-  if (isInWatchlist(ticker)) {
-    removeFromWatchlist(ticker)
+// 관심종목 추가/제거 토글
+export function toggleWatchlist(ticker: string, name: string): boolean {
+  const watchlist = getWatchlist()
+  const upperTicker = ticker.toUpperCase()
+  const index = watchlist.findIndex(item => item.ticker.toUpperCase() === upperTicker)
+  
+  if (index >= 0) {
+    // 제거
+    watchlist.splice(index, 1)
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist))
     return false // 제거됨
   } else {
-    addToWatchlist(ticker, name)
+    // 추가
+    watchlist.unshift({
+      ticker: upperTicker,
+      name,
+      addedAt: Date.now()
+    })
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist))
     return true // 추가됨
+  }
+}
+
+// 관심종목에서 제거
+export function removeFromWatchlist(ticker: string): void {
+  const watchlist = getWatchlist()
+  const filtered = watchlist.filter(item => item.ticker.toUpperCase() !== ticker.toUpperCase())
+  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(filtered))
+}
+
+// 관심종목 이벤트 로깅 (분석용)
+export function logWatchlistEvent(event: string, data: Record<string, any>): void {
+  // GA4 등 분석 도구 연동 시 사용
+  console.log(`[Watchlist] ${event}`, data)
+  
+  // Google Analytics 이벤트 (gtag가 있으면)
+  if (typeof window !== "undefined" && (window as any).gtag) {
+    (window as any).gtag("event", event, data)
   }
 }
