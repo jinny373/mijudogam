@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Heart, Pencil, X, Loader2, ChevronRight } from "lucide-react"
+import { ArrowLeft, Heart, Pencil, X, Loader2, ChevronRight, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { getWatchlist, removeFromWatchlist, logWatchlistEvent, WatchlistItem } from "@/lib/watchlist"
@@ -98,24 +98,34 @@ export default function WatchlistPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <Heart className="h-5 w-5 text-red-500 fill-red-500" />
-            관심 종목 ({watchlist.length})
-          </h1>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setIsEditMode(!isEditMode)}
-            className={isEditMode ? "text-primary" : ""}
+          {/* 검색바 */}
+          <div 
+            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
+            onClick={() => router.push('/?focus=search')}
           >
-            {isEditMode ? <X className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-          </Button>
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">종목 검색...</span>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-500 text-sm font-medium">
+              <Heart className="h-4 w-4 fill-current" />
+              <span>{watchlist.length}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={isEditMode ? "text-primary" : ""}
+            >
+              {isEditMode ? <X className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
       </header>
 

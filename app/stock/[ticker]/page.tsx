@@ -369,26 +369,30 @@ export default function StockDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
           <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0">
               <ArrowLeft className="h-5 w-5" />
               <span className="sr-only">뒤로가기</span>
             </Button>
           </Link>
-          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
-          <Link href="/" className="hover:opacity-80 transition-opacity">
-            <span className="text-lg font-bold text-primary">미주도감</span>
-          </Link>
-          <div className="flex items-center gap-2">
+          {/* 검색바 */}
+          <div 
+            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
+            onClick={() => window.location.href = '/?focus=search'}
+          >
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">다른 종목 검색...</span>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
             <Link 
               href="/watchlist"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-xs font-medium"
+              className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+              title="관심 종목"
             >
-              <Heart className="h-3.5 w-3.5 fill-current" />
-              <span>관심 종목</span>
+              <Heart className="h-5 w-5 fill-current" />
             </Link>
             <Button variant="ghost" size="icon" className="rounded-full" onClick={handleShare}>
               <Share2 className="h-5 w-5" />

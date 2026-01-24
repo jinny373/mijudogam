@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, ChevronRight, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -251,19 +251,23 @@ export default function MetricDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
           <Link href={`/stock/${ticker}`}>
-            <Button variant="ghost" size="sm" className="rounded-full gap-1 pl-2">
+            <Button variant="ghost" size="sm" className="rounded-full gap-1 pl-2 flex-shrink-0">
               <ArrowLeft className="h-4 w-4" />
-              <span>{data.stockName}</span>
+              <span className="max-w-[80px] truncate">{data.stockName}</span>
             </Button>
           </Link>
-          <Link href="/" className="hover:opacity-80 transition-opacity">
-            <span className="text-lg font-bold text-primary">미주도감</span>
-          </Link>
-          <div className="w-24" />
+          {/* 검색바 */}
+          <div 
+            className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
+            onClick={() => window.location.href = '/?focus=search'}
+          >
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">다른 종목 검색...</span>
+          </div>
         </div>
       </header>
 
