@@ -75,6 +75,7 @@ export async function GET(
           "incomeStatementHistoryQuarterly",
           "cashflowStatementHistory",
           "cashflowStatementHistoryQuarterly",
+          "balanceSheetHistoryQuarterly",  // v9.21: 분기별 부채비율 계산용
         ],
       }),
     ]);
@@ -93,6 +94,8 @@ export async function GET(
     const incomeQuarterly = quoteSummary.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
     const cashflowHistory = quoteSummary.cashflowStatementHistory?.cashflowStatements || [];
     const cashflowQuarterly = quoteSummary.cashflowStatementHistoryQuarterly?.cashflowStatements || [];
+    // v9.21: 분기별 대차대조표 (부채비율 계산용)
+    const balanceSheetQuarterly = quoteSummary.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
 
     // 기본 정보
     const basicInfo = {
@@ -266,6 +269,42 @@ export async function GET(
       };
     }).reverse();
 
+    // v9.21: 분기별 부채비율 계산 (Total Debt / Total Equity)
+    const quarterlyDebtTrend = balanceSheetQuarterly.slice(0, 4).map((q: any) => {
+      const quarter = q.endDate ? new Date(q.endDate) : null;
+      const quarterLabel = quarter 
+        ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+        : "N/A";
+      
+      // Total Debt = Short Term Debt + Long Term Debt
+      const shortTermDebt = q.shortLongTermDebt || q.shortTermDebt || 0;
+      const longTermDebt = q.longTermDebt || 0;
+      const totalDebt = shortTermDebt + longTermDebt;
+      const totalEquity = q.totalStockholderEquity || q.stockholdersEquity || 0;
+      
+      // 부채비율 계산 (자본이 0이면 null)
+      const debtToEquityQ = totalEquity > 0 ? totalDebt / totalEquity : null;
+      
+      return {
+        quarter: quarterLabel,
+        totalDebt,
+        totalEquity,
+        debtToEquity: debtToEquityQ,
+        currentRatio: q.totalCurrentAssets && q.totalCurrentLiabilities 
+          ? q.totalCurrentAssets / q.totalCurrentLiabilities 
+          : null,
+      };
+    }).reverse();
+
+    // 최신 분기 부채비율 (있으면 사용, 없으면 연간 데이터 사용)
+    const latestQuarterDebt = quarterlyDebtTrend.length > 0 
+      ? quarterlyDebtTrend[quarterlyDebtTrend.length - 1] 
+      : null;
+    const latestQuarterDebtToEquity = latestQuarterDebt?.debtToEquity ?? debtToEquity;
+    const latestQuarterCurrentRatio = latestQuarterDebt?.currentRatio ?? currentRatio;
+    const latestDebtQuarterLabel = latestQuarterDebt?.quarter || `${latestFiscalYear}년`;
+    const hasQuarterlyDebtData = quarterlyDebtTrend.length > 0 && latestQuarterDebt?.debtToEquity !== null;
+
     // 🆕 최신 분기 흑자/적자 체크 (연간 데이터와 별도)
     const latestQuarterNetIncome = quarterlyTrend.length > 0 
       ? quarterlyTrend[quarterlyTrend.length - 1].netIncome 
@@ -404,40 +443,70 @@ export async function GET(
       ] : undefined,
     };
 
-    // 🏦 빚 관리
+    // 🏦 빚 관리 - v9.21: 분기 데이터 우선 표시
+    const displayDebtToEquity = hasQuarterlyDebtData ? latestQuarterDebtToEquity : debtToEquity;
+    const displayCurrentRatio = hasQuarterlyDebtData ? latestQuarterCurrentRatio : currentRatio;
+    
     const debtManagement = {
       id: "debt",
       title: "빚 관리",
       emoji: "🏦",
-      status: getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false),
-      statusText: debtToEquity < 0.5 ? "우수" : debtToEquity < 1.5 ? "보통" : "주의",
-      summary: debtToEquity < 0.3
+      status: getStatus(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false),
+      statusText: displayDebtToEquity < 0.5 ? "우수" : displayDebtToEquity < 1.5 ? "보통" : "주의",
+      summary: displayDebtToEquity < 0.3
         ? "자본 대비 빚 부담이 적어요"
-        : debtToEquity < 1
+        : displayDebtToEquity < 1
           ? "빚이 적당해요"
           : "빚이 많은 편이에요",
-      mainValue: formatPercentNoSign(debtToEquity, "데이터 없음"),
+      mainValue: formatPercentNoSign(displayDebtToEquity, "데이터 없음"),
       mainLabel: "부채비율",
-      // v9.21: 빚 관리는 연간 재무제표 기준 (Yahoo Finance 분기 데이터 미제공)
-      average: `${latestFiscalYear}년 재무제표 기준`,
+      // v9.21: 분기 데이터 있으면 분기 기준으로 표시
+      average: hasQuarterlyDebtData 
+        ? `${latestDebtQuarterLabel} 기준`
+        : `${latestFiscalYear}년 재무제표 기준`,
       metrics: [
         {
           name: "부채비율 (빚 ÷ 자본)",
           description: "💡 내 돈 대비 빚이 얼마나 있나? 낮을수록 안전",
-          value: formatPercentNoSign(debtToEquity, "데이터 없음"),
-          status: getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false),
-          benchmark: `📅 ${latestFiscalYear}년 연간`,
-          interpretation: `${debtToEquity < 0.3 ? "우수 (30%↓)" : debtToEquity < 0.5 ? "양호 (50%↓)" : debtToEquity < 1 ? "보통 (100%↓)" : "높음 (100%↑)"}`,
+          value: formatPercentNoSign(displayDebtToEquity, "데이터 없음"),
+          status: getStatus(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false),
+          benchmark: hasQuarterlyDebtData ? `📅 ${latestDebtQuarterLabel}` : `📅 ${latestFiscalYear}년 연간`,
+          interpretation: `${displayDebtToEquity < 0.3 ? "우수 (30%↓)" : displayDebtToEquity < 0.5 ? "양호 (50%↓)" : displayDebtToEquity < 1 ? "보통 (100%↓)" : "높음 (100%↑)"}`,
         },
         {
           name: "유동비율 (단기 지급 능력)",
           description: "💡 1년 내 갚을 빚 대비 현금 여유. 1배 이상 필요",
-          value: formatRatio(currentRatio, "데이터 없음"),
-          status: getStatus(currentRatio, { good: 1.5, bad: 1 }, true),
-          benchmark: `📅 ${latestFiscalYear}년 연간`,
-          interpretation: `${currentRatio > 2 ? "우수 (2배↑)" : currentRatio > 1.5 ? "양호 (1.5배↑)" : currentRatio > 1 ? "보통 (1배↑)" : "주의 (1배↓)"}`,
+          value: formatRatio(displayCurrentRatio, "데이터 없음"),
+          status: getStatus(displayCurrentRatio, { good: 1.5, bad: 1 }, true),
+          benchmark: hasQuarterlyDebtData ? `📅 ${latestDebtQuarterLabel}` : `📅 ${latestFiscalYear}년 연간`,
+          interpretation: `${displayCurrentRatio > 2 ? "우수 (2배↑)" : displayCurrentRatio > 1.5 ? "양호 (1.5배↑)" : displayCurrentRatio > 1 ? "보통 (1배↑)" : "주의 (1배↓)"}`,
         },
+        // v9.21: 분기별 부채 추이 (데이터 있으면 표시)
+        ...(quarterlyDebtTrend.length >= 2 ? [{
+          name: "📈 분기별 부채비율 추이",
+          description: "💡 최근 4분기 부채 변화. 감소 추세면 좋아요",
+          value: quarterlyDebtTrend.map(q => q.quarter.replace(/^\d{4}/, "'" + q.quarter.slice(2, 4))).join(' → '),
+          status: (latestQuarterDebtToEquity < debtToEquity) ? "green" : 
+                  (latestQuarterDebtToEquity > debtToEquity * 1.2) ? "red" : "yellow",
+          benchmark: quarterlyDebtTrend.map(q => 
+            q.debtToEquity !== null ? formatPercentNoSign(q.debtToEquity, "-") : "-"
+          ).join(' → '),
+          interpretation: latestQuarterDebtToEquity < debtToEquity 
+            ? "부채 감소 추세 👍" 
+            : latestQuarterDebtToEquity > debtToEquity * 1.2 
+              ? "부채 증가 추세 ⚠️" 
+              : "비슷한 수준 유지",
+        }] : []),
       ],
+      // v9.21: 분기별 부채 추이 (차트용)
+      quarterlyTrend: quarterlyDebtTrend.length > 0 ? {
+        label: "최근 4분기 부채비율 추이",
+        data: quarterlyDebtTrend.map(q => ({
+          quarter: q.quarter,
+          value: q.debtToEquity !== null ? formatPercentNoSign(q.debtToEquity, "-") : "-",
+          raw: q.debtToEquity,
+        })),
+      } : null,
       whyImportant: [
         "빚이 많으면 금리 인상 시 이자 부담이 커져요",
         "유동비율이 낮으면 단기 자금난 위험이 있어요",
