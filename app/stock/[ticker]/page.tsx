@@ -78,12 +78,47 @@ const suggestionsMap: Record<string, { ticker: string; name: string }[]> = {
   "뉴스케일": [{ ticker: "SMR", name: "뉴스케일파워" }],
   "팔란티어": [{ ticker: "PLTR", name: "팔란티어" }],
   "팔란이오": [{ ticker: "PLTR", name: "팔란티어" }],  // 오타 대응
+  "팔랑티어": [{ ticker: "PLTR", name: "팔란티어" }],  // 오타 대응
+  "팔란": [{ ticker: "PLTR", name: "팔란티어" }],  // 부분 검색
   "로켓": [{ ticker: "RKLB", name: "로켓랩" }],
   "로켓램": [{ ticker: "RKLB", name: "로켓랩" }],  // 오타 대응
+  "로켓렙": [{ ticker: "RKLB", name: "로켓랩" }],  // 오타 대응
+  "로켓랩": [{ ticker: "RKLB", name: "로켓랩" }],
   "리게티": [{ ticker: "RGTI", name: "리게티컴퓨팅" }],
   "리겟티": [{ ticker: "RGTI", name: "리게티컴퓨팅" }],
+  "리게디": [{ ticker: "RGTI", name: "리게티컴퓨팅" }],  // 오타 대응
+  "리게이티": [{ ticker: "RGTI", name: "리게티컴퓨팅" }],  // 오타 대응
   "캐터필": [{ ticker: "CAT", name: "캐터필러" }],
+  "캐터필라": [{ ticker: "CAT", name: "캐터필러" }],  // 오타 대응
+  "캐터필러": [{ ticker: "CAT", name: "캐터필러" }],
   "노던": [{ ticker: "NOG", name: "노던오일앤가스" }, { ticker: "NTRS", name: "노던트러스트" }],
+  // v9.21: 추가 인기 종목 오타/별칭
+  "엔비디아": [{ ticker: "NVDA", name: "엔비디아" }],
+  "앤비디아": [{ ticker: "NVDA", name: "엔비디아" }],  // 오타 대응
+  "엔비디야": [{ ticker: "NVDA", name: "엔비디아" }],  // 오타 대응
+  "테슬라": [{ ticker: "TSLA", name: "테슬라" }],
+  "테슬러": [{ ticker: "TSLA", name: "테슬라" }],  // 오타 대응
+  "아마존": [{ ticker: "AMZN", name: "아마존" }],
+  "아마존닷컴": [{ ticker: "AMZN", name: "아마존" }],
+  "애플": [{ ticker: "AAPL", name: "애플" }],
+  "에플": [{ ticker: "AAPL", name: "애플" }],  // 오타 대응
+  "마이크로소프트": [{ ticker: "MSFT", name: "마이크로소프트" }],
+  "마소": [{ ticker: "MSFT", name: "마이크로소프트" }],  // 줄임말
+  "구글": [{ ticker: "GOOGL", name: "알파벳(구글)" }],
+  "알파벳": [{ ticker: "GOOGL", name: "알파벳(구글)" }],
+  "메타": [{ ticker: "META", name: "메타(페이스북)" }],
+  "페이스북": [{ ticker: "META", name: "메타(페이스북)" }],
+  "인텔": [{ ticker: "INTC", name: "인텔" }],
+  "AMD": [{ ticker: "AMD", name: "AMD" }],
+  "에이엠디": [{ ticker: "AMD", name: "AMD" }],
+  "아이온큐": [{ ticker: "IONQ", name: "아이온큐" }],
+  "아이온Q": [{ ticker: "IONQ", name: "아이온큐" }],
+  "퀀텀": [{ ticker: "QBTS", name: "디웨이브퀀텀" }, { ticker: "IONQ", name: "아이온큐" }],
+  "디웨이브": [{ ticker: "QBTS", name: "디웨이브퀀텀" }],
+  "코인베이스": [{ ticker: "COIN", name: "코인베이스" }],
+  "코인": [{ ticker: "COIN", name: "코인베이스" }],
+  "마이크로스트레티지": [{ ticker: "MSTR", name: "마이크로스트래티지" }],
+  "마스트": [{ ticker: "MSTR", name: "마이크로스트래티지" }],  // 줄임말
 }
 
 // 유사 종목 찾기
@@ -153,7 +188,10 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
               <span className="sr-only">뒤로가기</span>
             </Button>
           </Link>
-          <span className="text-lg font-bold text-primary">미주도감</span>
+          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <span className="text-lg font-bold text-primary">미주도감</span>
+          </Link>
           <div className="w-10" />
         </div>
       </header>
@@ -192,7 +230,7 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
                   >
                     <div>
                       <span className="font-semibold text-primary">{stock.ticker}</span>
-                      <span className="ml-2 text-muted-foreground">{stock.name}</span>
+                      <span className="text-muted-foreground ml-2 text-sm">{stock.name}</span>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </button>
@@ -201,19 +239,11 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
             </div>
           )}
           
-          {/* 기본 안내 (한국 주식도 아니고 유사 종목도 없을 때) */}
-          {!isKorean && suggestions.length === 0 && (
-            <div className="bg-muted/50 rounded-xl p-4 text-left space-y-2">
-              <p className="text-sm font-medium text-foreground">💡 이렇게 검색해보세요</p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• 티커: <span className="text-foreground font-medium">NVDA, TSLA, MSFT</span></li>
-                <li>• 영문명: <span className="text-foreground font-medium">Nvidia, Tesla, Microsoft</span></li>
-              </ul>
-            </div>
-          )}
-          
+          <p className="text-muted-foreground text-sm">
+            영어 티커로 검색해보세요 (예: AAPL, TSLA)
+          </p>
           <Link href="/">
-            <Button className="w-full">다시 검색하기</Button>
+            <Button className="rounded-full px-6">새로운 종목 검색</Button>
           </Link>
         </div>
       </main>
@@ -224,46 +254,35 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
 export default function StockDetailPage() {
   const params = useParams()
   const ticker = params.ticker as string
-  
+
   const [stockData, setStockData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
   const [isWatchlisted, setIsWatchlisted] = useState(false)
-
-  // 관심종목 여부 확인
-  useEffect(() => {
-    setIsWatchlisted(isInWatchlist(ticker))
-  }, [ticker])
-
-  // 관심종목 토글
-  const handleToggleWatchlist = () => {
-    if (!stockData) return
-    const result = toggleWatchlist(stockData.ticker, stockData.name)
-    setIsWatchlisted(result)
-  }
+  const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
         setIsLoading(true)
         setError(null)
-        
-        // API Route 호출
+
         const response = await fetch(`/api/stock/${ticker}`)
         const data = await response.json()
-        
+
         if (!response.ok) {
-          setError(data.error || "데이터를 찾을 수 없어요")
+          setError(data.error || "데이터를 불러올 수 없어요")
           return
         }
-        
+
         setStockData(data)
+        setIsWatchlisted(isInWatchlist(ticker))
         
         // 최근 본 종목에 저장
-        if (data.name && data.ticker) {
-          saveRecentStock(data.ticker, data.name)
-        }
+        saveRecentStock(ticker.toUpperCase(), data.name)
+        
+        // 페이지뷰 로깅
+        logWatchlistEvent("stock_view", { ticker: ticker.toUpperCase(), name: data.name })
       } catch (err) {
         console.error("Error:", err)
         setError("데이터를 불러오는 중 오류가 발생했어요")
@@ -277,15 +296,44 @@ export default function StockDetailPage() {
     }
   }, [ticker])
 
+  const handleToggleWatchlist = () => {
+    if (!stockData) return
+    
+    const newState = toggleWatchlist({
+      ticker: stockData.ticker,
+      name: stockData.name,
+      price: stockData.price,
+      change: stockData.change,
+      changePercent: stockData.changePercent,
+    })
+    setIsWatchlisted(newState)
+    
+    logWatchlistEvent(newState ? "watchlist_add" : "watchlist_remove", { 
+      ticker: stockData.ticker,
+      name: stockData.name 
+    })
+  }
+
   const handleShare = async () => {
-    if (stockData && navigator.share) {
-      await navigator.share({
-        title: `${stockData.name} (${stockData.ticker}) - 미주도감`,
-        url: window.location.href,
-      })
-    } else {
-      await navigator.clipboard.writeText(window.location.href)
-      alert("링크가 복사되었습니다!")
+    if (!stockData) return
+    
+    const shareData = {
+      title: `${stockData.name} (${stockData.ticker}) - 미주도감`,
+      text: stockData.aiSummary,
+      url: window.location.href,
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        logWatchlistEvent("share_native", { ticker: stockData.ticker })
+      } else {
+        await navigator.clipboard.writeText(window.location.href)
+        alert("링크가 복사되었어요!")
+        logWatchlistEvent("share_clipboard", { ticker: stockData.ticker })
+      }
+    } catch (err) {
+      console.log("Share failed:", err)
     }
   }
 
@@ -306,7 +354,10 @@ export default function StockDetailPage() {
               <span className="sr-only">뒤로가기</span>
             </Button>
           </Link>
-          <span className="text-lg font-bold text-primary">미주도감</span>
+          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <span className="text-lg font-bold text-primary">미주도감</span>
+          </Link>
           <div className="flex items-center gap-2">
             <Link 
               href="/watchlist"

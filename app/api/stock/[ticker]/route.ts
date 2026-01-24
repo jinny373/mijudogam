@@ -329,7 +329,10 @@ export async function GET(
       summary: getEarningSummary(),
       mainValue: formatPercentNoSign(roe, "데이터 없음"),
       mainLabel: "ROE",
-      average: `${latestFiscalYear}년 연간 기준`,
+      // v9.21: 분기 데이터 있으면 최근 분기 기준으로 표시
+      average: quarterlyTrend.length > 0 
+        ? `${quarterlyTrend[quarterlyTrend.length - 1]?.quarter || latestFiscalYear} 기준`
+        : `${latestFiscalYear}년 연간 기준`,
       metrics: [
         {
           name: "ROE (자기자본이익률)",
@@ -415,7 +418,8 @@ export async function GET(
           : "빚이 많은 편이에요",
       mainValue: formatPercentNoSign(debtToEquity, "데이터 없음"),
       mainLabel: "부채비율",
-      average: `${latestFiscalYear}년 연간 기준`,
+      // v9.21: 빚 관리는 연간 재무제표 기준 (Yahoo Finance 분기 데이터 미제공)
+      average: `${latestFiscalYear}년 재무제표 기준`,
       metrics: [
         {
           name: "부채비율 (빚 ÷ 자본)",
@@ -948,11 +952,15 @@ export async function GET(
         annualNetIncome: netIncomeCurrentYear,
         message: "연간 적자지만 최신 분기 흑자 전환!"
       } : null,
-      // 데이터 출처 면책 (강화)
+      // 데이터 출처 면책 (v9.21: 분기 데이터 우선 표시)
       dataSource: {
         provider: "Yahoo Finance API",
-        note: "⚠️ 연간 데이터 기준이며, 최신 분기와 다를 수 있어요",
-        lastUpdated: latestFiscalYear ? `${latestFiscalYear}년 연간 기준` : "최근 12개월",
+        note: quarterlyTrend.length > 0 
+          ? "📊 성장성은 분기 기준, 수익성/부채는 연간 기준이에요"
+          : "⚠️ 연간 데이터 기준이며, 최신 분기와 다를 수 있어요",
+        lastUpdated: quarterlyTrend.length > 0 
+          ? `${quarterlyTrend[quarterlyTrend.length - 1]?.quarter} 분기 기준`
+          : (latestFiscalYear ? `${latestFiscalYear}년 연간 기준` : "최근 12개월"),
         disclaimer: "투자 전 기업 IR 자료와 최신 분기 실적을 꼭 확인하세요",
       },
     };

@@ -18,8 +18,10 @@ function LoadingSkeleton() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-6 w-20" />
+          <div className="w-24" />
         </div>
       </header>
       <main className="px-4 py-6 max-w-2xl mx-auto space-y-6">
@@ -36,13 +38,18 @@ function ErrorState({ message, ticker }: { message: string; ticker: string }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Link href={`/stock/${ticker}`}>
             <Button variant="ghost" size="sm" className="rounded-full gap-1 pl-2">
               <ArrowLeft className="h-4 w-4" />
               <span>뒤로가기</span>
             </Button>
           </Link>
+          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <span className="text-lg font-bold text-primary">미주도감</span>
+          </Link>
+          <div className="w-24" />
         </div>
       </header>
       <main className="flex-1 flex items-center justify-center px-4">
@@ -102,15 +109,20 @@ export default function MetricDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header - v9.21: 로고 추가 */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
           <Link href={`/stock/${ticker}`}>
             <Button variant="ghost" size="sm" className="rounded-full gap-1 pl-2">
               <ArrowLeft className="h-4 w-4" />
               <span>{data.stockName}</span>
             </Button>
           </Link>
+          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <span className="text-lg font-bold text-primary">미주도감</span>
+          </Link>
+          <div className="w-24" />
         </div>
       </header>
 
