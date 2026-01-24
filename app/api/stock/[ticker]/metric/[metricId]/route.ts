@@ -494,40 +494,40 @@ export async function GET(
         return NextResponse.json({ error: "잘못된 지표입니다" }, { status: 400 });
     }
 
-    // v9.22: 관련 종목 추천 (섹터 기반)
+    // v9.22: 관련 종목 추천 (섹터 기반) - 한국명 추가
     const profile = quoteSummary.summaryProfile;
     const currentSector = profile?.sector || "Technology";
     
-    const sectorStocks: Record<string, { ticker: string; name: string; reason: string }[]> = {
+    const sectorStocks: Record<string, { ticker: string; name: string; nameKo: string; reason: string }[]> = {
       "Technology": [
-        { ticker: "AAPL", name: "Apple", reason: "빅테크 대장주" },
-        { ticker: "MSFT", name: "Microsoft", reason: "클라우드 & AI" },
-        { ticker: "NVDA", name: "NVIDIA", reason: "AI 반도체 1위" },
-        { ticker: "GOOGL", name: "Alphabet", reason: "검색 & 광고" },
+        { ticker: "AAPL", name: "Apple", nameKo: "애플", reason: "빅테크 대장주" },
+        { ticker: "MSFT", name: "Microsoft", nameKo: "마이크로소프트", reason: "클라우드 & AI" },
+        { ticker: "NVDA", name: "NVIDIA", nameKo: "엔비디아", reason: "AI 반도체 1위" },
+        { ticker: "GOOGL", name: "Alphabet", nameKo: "구글", reason: "검색 & 광고" },
       ],
       "Communication Services": [
-        { ticker: "GOOGL", name: "Alphabet", reason: "유튜브 & 검색" },
-        { ticker: "META", name: "Meta", reason: "SNS 플랫폼" },
-        { ticker: "NFLX", name: "Netflix", reason: "스트리밍 1위" },
-        { ticker: "DIS", name: "Disney", reason: "콘텐츠 제국" },
+        { ticker: "GOOGL", name: "Alphabet", nameKo: "구글", reason: "유튜브 & 검색" },
+        { ticker: "META", name: "Meta", nameKo: "메타", reason: "SNS 플랫폼" },
+        { ticker: "NFLX", name: "Netflix", nameKo: "넷플릭스", reason: "스트리밍 1위" },
+        { ticker: "DIS", name: "Disney", nameKo: "디즈니", reason: "콘텐츠 제국" },
       ],
       "Consumer Cyclical": [
-        { ticker: "AMZN", name: "Amazon", reason: "이커머스 왕" },
-        { ticker: "TSLA", name: "Tesla", reason: "전기차 선두" },
-        { ticker: "HD", name: "Home Depot", reason: "홈인테리어 1위" },
-        { ticker: "NKE", name: "Nike", reason: "스포츠웨어" },
+        { ticker: "AMZN", name: "Amazon", nameKo: "아마존", reason: "이커머스 왕" },
+        { ticker: "TSLA", name: "Tesla", nameKo: "테슬라", reason: "전기차 선두" },
+        { ticker: "HD", name: "Home Depot", nameKo: "홈디포", reason: "홈인테리어 1위" },
+        { ticker: "NKE", name: "Nike", nameKo: "나이키", reason: "스포츠웨어" },
       ],
       "Financial Services": [
-        { ticker: "JPM", name: "JPMorgan", reason: "미국 최대 은행" },
-        { ticker: "V", name: "Visa", reason: "결제 네트워크" },
-        { ticker: "MA", name: "Mastercard", reason: "결제 2위" },
-        { ticker: "GS", name: "Goldman Sachs", reason: "투자은행" },
+        { ticker: "JPM", name: "JPMorgan", nameKo: "JP모건", reason: "미국 최대 은행" },
+        { ticker: "V", name: "Visa", nameKo: "비자", reason: "결제 네트워크" },
+        { ticker: "MA", name: "Mastercard", nameKo: "마스터카드", reason: "결제 2위" },
+        { ticker: "GS", name: "Goldman Sachs", nameKo: "골드만삭스", reason: "투자은행" },
       ],
       "Healthcare": [
-        { ticker: "UNH", name: "UnitedHealth", reason: "헬스케어 1위" },
-        { ticker: "JNJ", name: "J&J", reason: "제약 & 의료기기" },
-        { ticker: "LLY", name: "Eli Lilly", reason: "비만치료제" },
-        { ticker: "PFE", name: "Pfizer", reason: "글로벌 제약" },
+        { ticker: "UNH", name: "UnitedHealth", nameKo: "유나이티드헬스", reason: "헬스케어 1위" },
+        { ticker: "JNJ", name: "J&J", nameKo: "존슨앤존슨", reason: "제약 & 의료기기" },
+        { ticker: "LLY", name: "Eli Lilly", nameKo: "일라이릴리", reason: "비만치료제" },
+        { ticker: "PFE", name: "Pfizer", nameKo: "화이자", reason: "글로벌 제약" },
       ],
     };
     

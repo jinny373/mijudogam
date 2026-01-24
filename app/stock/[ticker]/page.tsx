@@ -119,6 +119,35 @@ const suggestionsMap: Record<string, { ticker: string; name: string }[]> = {
   "코인": [{ ticker: "COIN", name: "코인베이스" }],
   "마이크로스트레티지": [{ ticker: "MSTR", name: "마이크로스트래티지" }],
   "마스트": [{ ticker: "MSTR", name: "마이크로스트래티지" }],  // 줄임말
+  // v9.22: 추가 종목
+  "온다스": [{ ticker: "ONDS", name: "온다스홀딩스" }],
+  "온다스홀딩스": [{ ticker: "ONDS", name: "온다스홀딩스" }],
+  "팔란티어": [{ ticker: "PLTR", name: "팔란티어" }],
+  "팔란": [{ ticker: "PLTR", name: "팔란티어" }],  // 줄임말
+  "브로드컴": [{ ticker: "AVGO", name: "브로드컴" }],
+  "TSMC": [{ ticker: "TSM", name: "TSMC(대만반도체)" }],
+  "대만반도체": [{ ticker: "TSM", name: "TSMC(대만반도체)" }],
+  "오라클": [{ ticker: "ORCL", name: "오라클" }],
+  "세일즈포스": [{ ticker: "CRM", name: "세일즈포스" }],
+  "넷플릭스": [{ ticker: "NFLX", name: "넷플릭스" }],
+  "디즈니": [{ ticker: "DIS", name: "디즈니" }],
+  "월마트": [{ ticker: "WMT", name: "월마트" }],
+  "코스트코": [{ ticker: "COST", name: "코스트코" }],
+  "비자": [{ ticker: "V", name: "비자" }],
+  "마스터카드": [{ ticker: "MA", name: "마스터카드" }],
+  "제이피모건": [{ ticker: "JPM", name: "JP모건" }],
+  "JP모건": [{ ticker: "JPM", name: "JP모건" }],
+  "골드만삭스": [{ ticker: "GS", name: "골드만삭스" }],
+  "나이키": [{ ticker: "NKE", name: "나이키" }],
+  "스타벅스": [{ ticker: "SBUX", name: "스타벅스" }],
+  "맥도날드": [{ ticker: "MCD", name: "맥도날드" }],
+  "코카콜라": [{ ticker: "KO", name: "코카콜라" }],
+  "펩시": [{ ticker: "PEP", name: "펩시코" }],
+  "존슨앤존슨": [{ ticker: "JNJ", name: "존슨앤존슨" }],
+  "화이자": [{ ticker: "PFE", name: "화이자" }],
+  "일라이릴리": [{ ticker: "LLY", name: "일라이릴리" }],
+  "엑슨모빌": [{ ticker: "XOM", name: "엑슨모빌" }],
+  "쉐브론": [{ ticker: "CVX", name: "쉐브론" }],
 }
 
 // 유사 종목 찾기
@@ -505,7 +534,7 @@ export default function StockDetailPage() {
               🔗 함께 보면 좋은 종목
             </h2>
             <div className="grid grid-cols-2 gap-3">
-              {stockData.relatedStocks.map((stock: { ticker: string; name: string; reason: string }) => (
+              {stockData.relatedStocks.map((stock: { ticker: string; name: string; nameKo: string; reason: string }) => (
                 <Card 
                   key={stock.ticker}
                   className="p-3 rounded-xl border shadow-sm hover:bg-muted/50 transition-colors cursor-pointer"
@@ -517,12 +546,15 @@ export default function StockDetailPage() {
                     window.location.href = `/stock/${stock.ticker}`
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-primary text-sm">{stock.ticker}</span>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-primary text-sm">{stock.ticker}</span>
+                      <span className="text-xs text-muted-foreground">{stock.nameKo || stock.name}</span>
+                    </div>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">
-                    {stock.reason}
+                    💡 {stock.reason}
                   </p>
                 </Card>
               ))}

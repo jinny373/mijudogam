@@ -364,7 +364,7 @@ export default function MetricDetailPage() {
               🔗 함께 보면 좋은 종목
             </h2>
             <div className="grid grid-cols-2 gap-3">
-              {data.relatedStocks.map((stock: { ticker: string; name: string; reason: string }) => (
+              {data.relatedStocks.map((stock: { ticker: string; name: string; nameKo: string; reason: string }) => (
                 <Card 
                   key={stock.ticker}
                   className="p-3 rounded-xl border shadow-sm hover:bg-muted/50 transition-colors cursor-pointer"
@@ -372,12 +372,15 @@ export default function MetricDetailPage() {
                     window.location.href = `/stock/${stock.ticker}`
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-primary text-sm">{stock.ticker}</span>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-primary text-sm">{stock.ticker}</span>
+                      <span className="text-xs text-muted-foreground">{stock.nameKo || stock.name}</span>
+                    </div>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">
-                    {stock.reason}
+                    💡 {stock.reason}
                   </p>
                 </Card>
               ))}
