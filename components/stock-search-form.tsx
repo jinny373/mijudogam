@@ -350,6 +350,12 @@ const koreanStockMap: Record<string, string> = {
   "온다스홀딩스": "ONDS",
   "온다스": "ONDS",
   "사이퍼마이닝": "CIFR",
+  "레드와이어": "RDW",
+  "템퍼스": "TEM",
+  "템퍼스AI": "TEM",
+  "템퍼스에이아이": "TEM",
+  "비트팜스": "BITF",
+  "비트팜": "BITF",
 }
 
 // ===== v9.20: 검색용 별칭 (줄임말, 오타 등) =====
@@ -385,6 +391,15 @@ const searchAliases: Record<string, string> = {
   "JP모건": "JPM",
   "몽고DB": "MDB",
   "UPS": "UPS",
+  
+  // v9.22: 추가 오타/줄임말
+  "비트팜주": "BITF",
+  "빗팜스": "BITF",
+  "빗팜": "BITF",
+  "템퍼스아이": "TEM",
+  "레드와이어": "RDW",
+  "사이퍼": "CIFR",
+  "싸이퍼": "CIFR",
 }
 
 // 티커 → 완전형 이름 역매핑 (유사 종목 추천용)

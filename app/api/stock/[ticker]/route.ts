@@ -429,18 +429,19 @@ export async function GET(
     // summary와 statusText 기준 통일: ROE 15% 이상이면 "우수"
     // 🆕 최신 분기 턴어라운드 반영
     const getEarningSummary = () => {
-      if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계 기업이에요";
+      if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계 기업이에요. 제품 출시 전이라 수익성 평가가 어려워요.";
       
       // 🆕 턴어라운드 케이스: 연간 적자지만 최신 분기 흑자
       if (isTurnaroundInProgress) {
-        return "연간으로는 적자지만, 최신 분기에 흑자 전환했어요! 🎉";
+        return "연간 기준으로는 아직 적자지만, 최신 분기에 흑자 전환에 성공했어요! 이 추세가 지속될지 지켜봐야 해요.";
       }
       
-      if (isNegativeOCF) return "장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요";
-      if (roe > 0.15) return "돈을 잘 벌고 있어요";
-      if (roe > 0.05) return "돈을 적당히 벌고 있어요";
-      if (roe < 0) return "현재 적자 상태예요";
-      return "수익성이 낮은 편이에요";
+      if (isNegativeOCF) return "장부상 이익은 있지만, 실제 영업활동에서 현금이 빠져나가고 있어요. 이익의 질을 확인해야 해요.";
+      if (roe > 0.2) return "자기자본 대비 이익률이 매우 높아요. 주주 돈으로 효율적으로 돈을 잘 벌고 있어요.";
+      if (roe > 0.15) return "돈을 잘 벌고 있어요. ROE가 15% 이상이면 우량 기업으로 평가받아요.";
+      if (roe > 0.05) return "수익은 내고 있지만 특별히 높지는 않아요. 업종 평균과 비교해 보세요.";
+      if (roe < 0) return "현재 적자 상태예요. 적자가 일시적인지, 구조적인지 확인이 필요해요.";
+      return "수익성이 낮은 편이에요. 마진 개선 여지가 있는지 살펴보세요.";
     };
 
     const earningPower = {
@@ -560,10 +561,14 @@ export async function GET(
       status: getStatus(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false),
       statusText: displayDebtToEquity < 0.5 ? "우수" : displayDebtToEquity < 1.5 ? "보통" : "주의",
       summary: displayDebtToEquity < 0.3
-        ? "자본 대비 빚 부담이 적어요"
-        : displayDebtToEquity < 1
-          ? "빚이 적당해요"
-          : "빚이 많은 편이에요",
+        ? "자본 대비 빚 부담이 매우 적어요. 재무 건전성이 좋고 금리 인상에도 안전해요."
+        : displayDebtToEquity < 0.5
+          ? "빚을 잘 관리하고 있어요. 자본 대비 부채가 적당한 수준이에요."
+          : displayDebtToEquity < 1
+            ? "빚이 어느 정도 있지만 관리 가능한 수준이에요. 업종 특성을 고려해야 해요."
+            : displayDebtToEquity < 1.5
+              ? "빚이 좀 많은 편이에요. 이자 비용이 이익을 갉아먹을 수 있어요."
+              : "빚이 많아서 재무 위험이 있어요. 금리 인상이나 실적 악화 시 취약해요.",
       mainValue: formatPercentNoSign(displayDebtToEquity, "데이터 없음"),
       mainLabel: "부채비율",
       // v9.22: financialData는 mrq(최근 분기) 기준
@@ -683,26 +688,26 @@ export async function GET(
     };
     
     const getGrowthSummary = () => {
-      if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계예요";
+      if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계예요. 제품 출시나 상업화 시점이 중요해요.";
       
       // 연간 성장률 있으면 사용
       if (hasRevenueGrowthData) {
-        if (revenueGrowthValue > 0.5) return "폭발적으로 성장하고 있어요!";
-        if (revenueGrowthValue > 0.3) return "빠르게 성장하고 있어요";
-        if (revenueGrowthValue > 0.1) return "꾸준히 성장하고 있어요";
-        if (revenueGrowthValue > 0) return "느리게 성장하고 있어요";
-        if (revenueGrowthValue > -0.1) return "성장이 멈춘 상태예요";
-        return "매출이 줄어들고 있어요";
+        if (revenueGrowthValue > 0.5) return "폭발적으로 성장하고 있어요! 고성장 기업은 프리미엄 밸류에이션을 받을 수 있어요.";
+        if (revenueGrowthValue > 0.3) return "빠르게 성장하고 있어요. 시장점유율 확대나 신사업 확장이 잘 되고 있어요.";
+        if (revenueGrowthValue > 0.1) return "꾸준히 성장하고 있어요. 안정적인 성장세를 유지하고 있어요.";
+        if (revenueGrowthValue > 0) return "느리게 성장하고 있어요. 성숙기 기업이거나 경쟁이 치열한 시장일 수 있어요.";
+        if (revenueGrowthValue > -0.1) return "성장이 멈춘 상태예요. 새로운 성장 동력이 필요해 보여요.";
+        return "매출이 줄어들고 있어요. 시장 환경이나 경쟁력에 문제가 있는지 확인해 보세요.";
       }
       
       // 분기별 대체 가능하면 사용
       if (canUseQuarterlyGrowth && fallbackGrowthRate !== null) {
-        const prefix = fallbackGrowthType === "전년 동기 대비" ? "최근 분기" : "전분기 대비";
-        if (fallbackGrowthRate > 0.3) return `${prefix} 빠르게 성장하고 있어요`;
-        if (fallbackGrowthRate > 0.1) return `${prefix} 꾸준히 성장하고 있어요`;
-        if (fallbackGrowthRate > 0) return `${prefix} 성장하고 있어요`;
-        if (fallbackGrowthRate > -0.1) return `${prefix} 보합세예요`;
-        return `${prefix} 매출이 감소했어요`;
+        const prefix = fallbackGrowthType === "전년 동기 대비" ? "최근 분기 기준" : "전분기 대비";
+        if (fallbackGrowthRate > 0.3) return `${prefix} 빠르게 성장하고 있어요. 실적 개선이 뚜렷해요.`;
+        if (fallbackGrowthRate > 0.1) return `${prefix} 꾸준히 성장하고 있어요. 긍정적인 흐름이에요.`;
+        if (fallbackGrowthRate > 0) return `${prefix} 완만하게 성장하고 있어요.`;
+        if (fallbackGrowthRate > -0.1) return `${prefix} 보합세예요. 성장 모멘텀이 약해요.`;
+        return `${prefix} 매출이 감소했어요. 일시적인지 추세적인지 확인이 필요해요.`;
       }
       
       // 분기별 추이만 있으면 추이로 표시
@@ -938,11 +943,13 @@ export async function GET(
     };
 
     const getPERSummary = () => {
-      if (isNegativePER) return "적자 기업이라 PER을 산정하기 어려워요";
-      if (per < 15) return "PER이 낮은 편이에요";
-      if (per < 40) return "PER이 보통 수준이에요";
-      if (per < 60) return "PER이 높은 편이에요";
-      return "PER이 매우 높아요";
+      if (isNegativePER) return "적자 기업이라 PER을 산정하기 어려워요. PSR(매출 대비)이나 PBR(자산 대비)로 평가해야 해요.";
+      if (per < 10) return "PER이 매우 낮아요. 저평가일 수도 있고, 성장성이 없다고 평가받는 것일 수도 있어요.";
+      if (per < 15) return "PER이 낮은 편이에요. 가치주이거나 성장 기대가 낮은 기업일 수 있어요.";
+      if (per < 25) return "PER이 적정 수준이에요. 이익 대비 주가가 합리적인 범위에요.";
+      if (per < 40) return "PER이 다소 높지만, 성장주라면 받아들일 수 있는 수준이에요.";
+      if (per < 60) return "PER이 높은 편이에요. 미래 성장에 대한 기대가 주가에 반영되어 있어요.";
+      return "PER이 매우 높아요. 고성장 기대가 충족되지 않으면 주가 하락 위험이 있어요.";
     };
 
     const getPERStatusText = () => {

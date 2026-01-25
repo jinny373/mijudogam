@@ -34,6 +34,9 @@ const koreanNameMap: { [key: string]: string } = {
   
   // v9.22: 추가 요청 종목
   "사이퍼마이닝": "CIFR", "사이퍼": "CIFR", "싸이퍼마이닝": "CIFR", "싸이퍼": "CIFR",
+  "레드와이어": "RDW",
+  "템퍼스": "TEM", "템퍼스AI": "TEM", "템퍼스에이아이": "TEM", "템퍼스아이": "TEM",
+  "비트팜스": "BITF", "비트팜": "BITF", "비트팜주": "BITF", "빗팜스": "BITF",
   
   // 금융
   "버크셔": "BRK-B", "JP모건": "JPM", "제이피모건": "JPM",
