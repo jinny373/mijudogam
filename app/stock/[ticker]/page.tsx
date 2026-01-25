@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Share2, ThumbsUp, ThumbsDown, TrendingUp, Landmark, Rocket, Gem, ChevronRight, Heart, Search } from "lucide-react"
+import { ArrowLeft, Share2, ThumbsUp, ThumbsDown, TrendingUp, Landmark, Rocket, Gem, ChevronRight, Heart, Search, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -151,13 +151,25 @@ const suggestionsMap: Record<string, { ticker: string; name: string }[]> = {
   "쉐브론": [{ ticker: "CVX", name: "쉐브론" }],
 }
 
-// 유사 종목 찾기
+// 유사 종목 찾기 (v9.22: 티커로도 검색 가능)
 const findSuggestions = (query: string): { ticker: string; name: string }[] => {
-  const decoded = decodeURIComponent(query).toLowerCase()
+  const decoded = decodeURIComponent(query)
+  const decodedLower = decoded.toLowerCase()
+  const decodedUpper = decoded.toUpperCase()
   
+  // 1. 한글 키워드로 검색
   for (const [keyword, suggestions] of Object.entries(suggestionsMap)) {
-    if (decoded.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(decoded)) {
+    if (decodedLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(decodedLower)) {
       return suggestions
+    }
+  }
+  
+  // 2. 티커로 검색 (역방향) - APP → 앱러빈
+  for (const [keyword, suggestions] of Object.entries(suggestionsMap)) {
+    for (const suggestion of suggestions) {
+      if (suggestion.ticker.toUpperCase() === decodedUpper) {
+        return suggestions
+      }
     }
   }
   
@@ -196,17 +208,31 @@ function LoadingSkeleton() {
 }
 
 // ===== v9.20: ErrorState 개선 =====
-function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
+function ErrorState({ message, ticker, onRetry }: { message: string; ticker?: string; onRetry?: () => void }) {
   const router = useRouter()
+  const [isRetrying, setIsRetrying] = useState(false)
   
   // URL 인코딩된 한글 디코딩
   const decodedTicker = ticker ? decodeURIComponent(ticker) : null
+  const upperTicker = decodedTicker?.toUpperCase()
   
   // v9.20: 한국 주식 여부 체크
   const isKorean = decodedTicker ? isKoreanStock(decodedTicker) : false
   
   // v9.20: 유사 종목 추천
-  const suggestions = decodedTicker ? findSuggestions(decodedTicker) : []
+  const allSuggestions = decodedTicker ? findSuggestions(decodedTicker) : []
+  
+  // v9.22: 추천 종목 중 현재 티커와 일치하는 것 찾기 (API 에러 케이스)
+  const matchingSuggestion = allSuggestions.find(s => s.ticker.toUpperCase() === upperTicker)
+  
+  // 현재 티커와 다른 추천만 표시
+  const suggestions = allSuggestions.filter(s => s.ticker.toUpperCase() !== upperTicker)
+  
+  const handleRetryWithTicker = async (tickerToRetry: string) => {
+    setIsRetrying(true)
+    // 강제 새로고침으로 재시도
+    window.location.href = `/stock/${tickerToRetry}`
+  }
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -218,7 +244,6 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
               <span className="sr-only">뒤로가기</span>
             </Button>
           </Link>
-          {/* v9.21: 로고 클릭 시 홈으로 이동 */}
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <span className="text-lg font-bold text-primary">미주도감</span>
           </Link>
@@ -227,54 +252,90 @@ function ErrorState({ message, ticker }: { message: string; ticker?: string }) {
       </header>
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="text-center space-y-4 max-w-sm w-full">
-          <div className="text-4xl">😅</div>
-          <p className="text-foreground text-lg font-medium">
-            {decodedTicker ? `"${decodedTicker}" 종목을 찾을 수 없어요` : "종목을 찾을 수 없어요"}
-          </p>
-          
-          {/* v9.20: 한국 주식 검색 시 안내 */}
-          {isKorean && (
-            <div className="bg-orange-50 dark:bg-orange-950 rounded-xl p-4 text-left">
-              <p className="text-sm font-medium text-orange-600 dark:text-orange-400 flex items-center gap-2">
-                ⚠️ 미주도감은 <strong>미국 주식</strong>만 지원해요
+          {/* v9.22: API 에러 (올바른 티커인데 데이터 못 가져옴) */}
+          {matchingSuggestion ? (
+            <>
+              <div className="text-4xl">⏳</div>
+              <p className="text-foreground text-lg font-medium">
+                데이터를 불러오는 중 문제가 생겼어요
               </p>
-              <p className="text-xs text-orange-500 mt-2">
-                한국 주식은 네이버 증권, 키움증권 등을 이용해주세요
+              <p className="text-muted-foreground text-sm">
+                Yahoo Finance 서버가 응답하지 않아요
               </p>
-            </div>
-          )}
-          
-          {/* v9.20: 유사 종목 추천 */}
-          {!isKorean && suggestions.length > 0 && (
-            <div className="bg-primary/5 rounded-xl p-4 text-left">
-              <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
-                <Search className="h-4 w-4" />
-                이 종목을 찾으셨나요?
-              </p>
-              <div className="space-y-2">
-                {suggestions.map((stock) => (
-                  <button
-                    key={stock.ticker}
-                    onClick={() => router.push(`/stock/${stock.ticker}`)}
-                    className="w-full px-4 py-3 bg-background rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-left flex items-center justify-between"
-                  >
-                    <div>
-                      <span className="font-semibold text-primary">{stock.ticker}</span>
-                      <span className="text-muted-foreground ml-2 text-sm">{stock.name}</span>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                ))}
+              <div className="space-y-2 pt-2">
+                <Button 
+                  onClick={() => handleRetryWithTicker(matchingSuggestion.ticker)}
+                  disabled={isRetrying}
+                  className="rounded-full px-6 w-full"
+                >
+                  {isRetrying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      다시 시도 중...
+                    </>
+                  ) : (
+                    `${matchingSuggestion.name} (${matchingSuggestion.ticker}) 다시 시도`
+                  )}
+                </Button>
+                <Link href="/" className="block">
+                  <Button variant="outline" className="rounded-full px-6 w-full">
+                    다른 종목 검색
+                  </Button>
+                </Link>
               </div>
-            </div>
+            </>
+          ) : (
+            <>
+              <div className="text-4xl">😅</div>
+              <p className="text-foreground text-lg font-medium">
+                {decodedTicker ? `"${decodedTicker}" 종목을 찾을 수 없어요` : "종목을 찾을 수 없어요"}
+              </p>
+              
+              {/* v9.20: 한국 주식 검색 시 안내 */}
+              {isKorean && (
+                <div className="bg-orange-50 dark:bg-orange-950 rounded-xl p-4 text-left">
+                  <p className="text-sm font-medium text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                    ⚠️ 미주도감은 <strong>미국 주식</strong>만 지원해요
+                  </p>
+                  <p className="text-xs text-orange-500 mt-2">
+                    한국 주식은 네이버 증권, 키움증권 등을 이용해주세요
+                  </p>
+                </div>
+              )}
+              
+              {/* v9.20: 유사 종목 추천 */}
+              {!isKorean && suggestions.length > 0 && (
+                <div className="bg-primary/5 rounded-xl p-4 text-left">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
+                    <Search className="h-4 w-4" />
+                    이 종목을 찾으셨나요?
+                  </p>
+                  <div className="space-y-2">
+                    {suggestions.map((stock) => (
+                      <button
+                        key={stock.ticker}
+                        onClick={() => router.push(`/stock/${stock.ticker}`)}
+                        className="w-full px-4 py-3 bg-background rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors text-left flex items-center justify-between"
+                      >
+                        <div>
+                          <span className="font-semibold text-primary">{stock.ticker}</span>
+                          <span className="text-muted-foreground ml-2 text-sm">{stock.name}</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-muted-foreground text-sm">
+                영어 티커로 검색해보세요 (예: AAPL, TSLA)
+              </p>
+              <Link href="/">
+                <Button className="rounded-full px-6">새로운 종목 검색</Button>
+              </Link>
+            </>
           )}
-          
-          <p className="text-muted-foreground text-sm">
-            영어 티커로 검색해보세요 (예: AAPL, TSLA)
-          </p>
-          <Link href="/">
-            <Button className="rounded-full px-6">새로운 종목 검색</Button>
-          </Link>
         </div>
       </main>
     </div>
@@ -292,36 +353,37 @@ export default function StockDetailPage() {
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true)
-        setError(null)
+  // fetchData를 컴포넌트 스코프로 이동 (재시도 가능하게)
+  const fetchData = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
 
-        const response = await fetch(`/api/stock/${ticker}`)
-        const data = await response.json()
+      const response = await fetch(`/api/stock/${ticker}`)
+      const data = await response.json()
 
-        if (!response.ok) {
-          setError(data.error || "데이터를 불러올 수 없어요")
-          return
-        }
-
-        setStockData(data)
-        setIsWatchlisted(isInWatchlist(ticker))
-        
-        // 최근 본 종목에 저장
-        saveRecentStock(ticker.toUpperCase(), data.name)
-        
-        // 페이지뷰 로깅
-        logWatchlistEvent("stock_view", { ticker: ticker.toUpperCase(), name: data.name })
-      } catch (err) {
-        console.error("Error:", err)
-        setError("데이터를 불러오는 중 오류가 발생했어요")
-      } finally {
-        setIsLoading(false)
+      if (!response.ok) {
+        setError(data.error || "데이터를 불러올 수 없어요")
+        return
       }
-    }
 
+      setStockData(data)
+      setIsWatchlisted(isInWatchlist(ticker))
+      
+      // 최근 본 종목에 저장
+      saveRecentStock(ticker.toUpperCase(), data.name)
+      
+      // 페이지뷰 로깅
+      logWatchlistEvent("stock_view", { ticker: ticker.toUpperCase(), name: data.name })
+    } catch (err) {
+      console.error("Error:", err)
+      setError("데이터를 불러오는 중 오류가 발생했어요")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     if (ticker) {
       fetchData()
     }
@@ -364,8 +426,8 @@ export default function StockDetailPage() {
   }
 
   if (isLoading) return <LoadingSkeleton />
-  if (error) return <ErrorState message={error} ticker={ticker} />
-  if (!stockData) return <ErrorState message="데이터를 찾을 수 없어요" ticker={ticker} />
+  if (error) return <ErrorState message={error} ticker={ticker} onRetry={fetchData} />
+  if (!stockData) return <ErrorState message="데이터를 찾을 수 없어요" ticker={ticker} onRetry={fetchData} />
 
   const isPositive = stockData.change >= 0
 
