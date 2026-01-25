@@ -51,6 +51,25 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`font-sans antialiased`}>
+        {/* v9.22: 카카오톡 인앱 브라우저 감지 → 외부 브라우저 유도 */}
+        <Script id="kakao-inapp-redirect" strategy="beforeInteractive">
+          {`
+            (function() {
+              var ua = navigator.userAgent || navigator.vendor;
+              var isKakao = ua.indexOf('KAKAOTALK') > -1;
+              if (isKakao) {
+                document.addEventListener('DOMContentLoaded', function() {
+                  document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:20px;text-align:center;font-family:sans-serif;">' +
+                    '<div style="font-size:48px;margin-bottom:20px;">📱</div>' +
+                    '<h2 style="margin-bottom:12px;color:#333;">외부 브라우저로 열어주세요</h2>' +
+                    '<p style="color:#666;margin-bottom:24px;line-height:1.5;">카카오톡 내 브라우저에서는<br/>정상 작동하지 않을 수 있어요</p>' +
+                    '<p style="color:#888;font-size:14px;">우측 상단 <strong>⋮</strong> 메뉴 →<br/><strong>다른 브라우저로 열기</strong></p>' +
+                  '</div>';
+                });
+              }
+            })();
+          `}
+        </Script>
         {/* v9.22: 앱 시작 시 잘못된 localStorage 자동 정리 (에러 방지) */}
         <Script id="cleanup-localstorage" strategy="beforeInteractive">
           {`
