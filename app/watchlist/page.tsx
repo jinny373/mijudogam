@@ -6,6 +6,7 @@ import { ArrowLeft, Heart, Pencil, X, Loader2, ChevronRight, Search } from "luci
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { getWatchlist, removeFromWatchlist, logWatchlistEvent, WatchlistItem } from "@/lib/watchlist"
+import { HeaderSearchModal } from "@/components/header-search-modal"
 
 const statusDots: Record<string, string> = {
   green: "🟢",
@@ -29,6 +30,7 @@ export default function WatchlistPage() {
   const [stockData, setStockData] = useState<Record<string, any>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // 관심 종목 불러오기
   useEffect(() => {
@@ -98,16 +100,19 @@ export default function WatchlistPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* 검색 모달 */}
+      <HeaderSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      
       {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          {/* 검색바 */}
+          {/* 검색바 - 클릭 시 모달 열기 */}
           <div 
             className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
-            onClick={() => router.push('/?focus=search')}
+            onClick={() => setIsSearchOpen(true)}
           >
             <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm text-muted-foreground truncate">종목 검색</span>

@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronRight, Search, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { HeaderSearchModal } from "@/components/header-search-modal"
 
 const statusStyles = {
   green: { badge: "bg-[#22C55E]/10 text-[#22C55E]", bar: "bg-[#22C55E]", dot: "🟢", text: "text-[#22C55E]" },
@@ -214,6 +215,7 @@ export default function MetricDetailPage() {
   const [data, setData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -251,6 +253,9 @@ export default function MetricDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* 검색 모달 */}
+      <HeaderSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      
       {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
@@ -260,10 +265,10 @@ export default function MetricDetailPage() {
               <span className="max-w-[60px] truncate">{data.stockName}</span>
             </Button>
           </Link>
-          {/* 검색바 */}
+          {/* 검색바 - 클릭 시 모달 열기 */}
           <div 
             className="flex-1 min-w-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
-            onClick={() => window.location.href = '/?focus=search'}
+            onClick={() => setIsSearchOpen(true)}
           >
             <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm text-muted-foreground truncate">종목 검색</span>
