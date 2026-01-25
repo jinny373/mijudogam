@@ -517,7 +517,7 @@ export default function StockDetailPage() {
                       </div>
                     </div>
                     <h4 className="font-semibold text-foreground text-sm">{metric.title}</h4>
-                    <p className="text-muted-foreground text-xs mt-0.5 mb-3">{metric.summary}</p>
+                    <p className="text-muted-foreground text-sm mt-0.5 mb-3 leading-snug">{metric.summary}</p>
                     <div>
                       <span className="text-2xl font-bold text-foreground">{metric.mainValue}</span>
                       <span className="text-xs text-muted-foreground ml-1">{metric.mainLabel}</span>
