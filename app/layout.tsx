@@ -51,6 +51,29 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`font-sans antialiased`}>
+        {/* v9.22: 앱 시작 시 잘못된 localStorage 자동 정리 (에러 방지) */}
+        <Script id="cleanup-localstorage" strategy="beforeInteractive">
+          {`
+            try {
+              var watchlist = localStorage.getItem('mijudogam_watchlist');
+              if (watchlist) {
+                var parsed = JSON.parse(watchlist);
+                if (Array.isArray(parsed)) {
+                  var cleaned = parsed.filter(function(item) {
+                    return item && typeof item.ticker === 'string';
+                  });
+                  if (cleaned.length !== parsed.length) {
+                    localStorage.setItem('mijudogam_watchlist', JSON.stringify(cleaned));
+                    console.log('[Watchlist] 잘못된 데이터 정리됨');
+                  }
+                }
+              }
+            } catch (e) {
+              localStorage.removeItem('mijudogam_watchlist');
+              console.log('[Watchlist] 데이터 초기화됨');
+            }
+          `}
+        </Script>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-86S8VWEK1T"
           strategy="afterInteractive"
