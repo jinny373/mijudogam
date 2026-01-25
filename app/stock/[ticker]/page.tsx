@@ -506,7 +506,7 @@ export default function StockDetailPage() {
                     metric_title: metric.title 
                   })}
                 >
-                  <Card className="p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <Card className="p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
                     <div className="flex items-center justify-between mb-2">
                       <div className={`p-2 rounded-lg ${colors.light}`}>
                         <Icon className={`h-5 w-5 ${colors.text}`} />
@@ -517,12 +517,14 @@ export default function StockDetailPage() {
                       </div>
                     </div>
                     <h4 className="font-semibold text-foreground text-sm">{metric.title}</h4>
-                    <p className="text-muted-foreground text-sm mt-0.5 mb-3 leading-snug">{metric.summary}</p>
-                    <div>
-                      <span className="text-2xl font-bold text-foreground">{metric.mainValue}</span>
-                      <span className="text-xs text-muted-foreground ml-1">{metric.mainLabel}</span>
+                    <p className="text-muted-foreground text-base mt-0.5 mb-3 leading-snug flex-1">{metric.summary}</p>
+                    <div className="mt-auto">
+                      <div>
+                        <span className="text-2xl font-bold text-foreground">{metric.mainValue}</span>
+                        <span className="text-xs text-muted-foreground ml-1">{metric.mainLabel}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{metric.average}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{metric.average}</p>
                   </Card>
                 </Link>
               )
