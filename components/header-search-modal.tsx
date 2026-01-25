@@ -43,10 +43,21 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 모달 열릴 때 포커스
+  // 모달 열릴 때 즉시 포커스 (모바일 키보드 트리거)
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100)
+      // 모바일에서 키보드가 확실히 올라오도록 즉시 포커스
+      inputRef.current.focus()
+      // iOS Safari 대응: 약간의 딜레이 후 다시 포커스
+      const timer = setTimeout(() => {
+        inputRef.current?.focus()
+        // 커서를 끝으로 이동
+        inputRef.current?.setSelectionRange(
+          inputRef.current.value.length,
+          inputRef.current.value.length
+        )
+      }, 50)
+      return () => clearTimeout(timer)
     }
   }, [isOpen])
 
@@ -205,6 +216,8 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
               <Input
                 ref={inputRef}
                 type="text"
+                inputMode="search"
+                enterKeyHint="search"
                 placeholder="종목명 또는 티커 검색"
                 value={query}
                 onChange={(e) => {
@@ -213,6 +226,7 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
                 }}
                 onKeyDown={handleKeyDown}
                 autoComplete="off"
+                autoFocus
                 className="flex-1 border-0 focus-visible:ring-0 text-base h-14"
               />
               {isSearching && (
