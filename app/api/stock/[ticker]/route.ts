@@ -1736,14 +1736,19 @@ export async function GET(
           const ks = signalData.defaultKeyStatistics;
           
           const roe = fd?.returnOnEquity || 0;
-          const debt = fd?.debtToEquity || 0;
+          // debtToEquity는 비율(0.5 = 50%)로 반환됨
+          const debtRatio = (fd?.debtToEquity || 0) * 100; // % 단위로 변환
           const revenueGrowth = fd?.revenueGrowth || 0;
           const per = ks?.forwardPE || ks?.trailingPE || 0;
           
           return {
+            // ROE: 15%↑ 우수, 5%↑ 보통, 5%↓ 주의
             earning: roe > 0.15 ? "good" : roe > 0.05 ? "normal" : "bad",
-            debt: debt < 0.5 ? "good" : debt < 1.5 ? "normal" : "bad",
+            // 부채비율: 30%↓ 우수, 100%↓ 보통, 100%↑ 주의 (상세 페이지와 동일)
+            debt: debtRatio < 30 ? "good" : debtRatio < 100 ? "normal" : "bad",
+            // 성장률: 15%↑ 우수, 0%↑ 보통, 0%↓ 주의
             growth: revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad",
+            // PER: 25↓ 저평가, 50↓ 보통, 50↑ 고평가
             valuation: per > 0 && per < 25 ? "good" : per > 0 && per < 50 ? "normal" : "bad",
           };
         } catch (error) {
