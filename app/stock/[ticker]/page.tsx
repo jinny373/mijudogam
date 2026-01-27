@@ -359,8 +359,8 @@ export default function StockDetailPage() {
       setIsLoading(true)
       setError(null)
 
-      // v9.39: 캐시 버스팅 - 버전 파라미터 추가
-      const response = await fetch(`/api/stock/${ticker}?v=9.39`)
+      // v9.40: 매번 새로운 타임스탬프로 캐시 버스팅
+      const response = await fetch(`/api/stock/${ticker}?v=${Date.now()}`)
       const data = await response.json()
 
       if (!response.ok) {
