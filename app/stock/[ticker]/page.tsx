@@ -599,37 +599,82 @@ export default function StockDetailPage() {
           </div>
         </section>
 
-        {/* v9.22: 관련 종목 추천 */}
+        {/* v9.26: 관련 종목 추천 (신호등 포함) */}
         {stockData.relatedStocks && stockData.relatedStocks.length > 0 && (
           <section className="pt-2">
             <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
               🔗 함께 보면 좋은 종목
             </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {stockData.relatedStocks.map((stock: { ticker: string; name: string; nameKo: string; reason: string }) => (
-                <Card 
-                  key={stock.ticker}
-                  className="p-3 rounded-xl border shadow-sm hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => {
-                    logWatchlistEvent("related_stock_click", { 
-                      from: stockData.ticker, 
-                      to: stock.ticker 
-                    })
-                    window.location.href = `/stock/${stock.ticker}`
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-primary text-sm">{stock.ticker}</span>
-                      <span className="text-xs text-muted-foreground">{stock.nameKo || stock.name}</span>
+            {/* 신호등 범례 */}
+            <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">💰 수익</span>
+              <span className="flex items-center gap-1">🏦 빚</span>
+              <span className="flex items-center gap-1">🚀 성장</span>
+              <span className="flex items-center gap-1">💎 몸값</span>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {stockData.relatedStocks.map((stock: { 
+                ticker: string; 
+                name: string; 
+                nameKo: string; 
+                reason: string;
+                signals?: {
+                  earning: "good" | "normal" | "bad";
+                  debt: "good" | "normal" | "bad";
+                  growth: "good" | "normal" | "bad";
+                  valuation: "good" | "normal" | "bad";
+                } | null;
+              }) => {
+                // 신호등 색상 매핑
+                const getSignalColor = (signal?: "good" | "normal" | "bad") => {
+                  if (!signal) return "bg-gray-300";
+                  if (signal === "good") return "bg-green-500";
+                  if (signal === "normal") return "bg-yellow-500";
+                  return "bg-red-500";
+                };
+                
+                return (
+                  <Card 
+                    key={stock.ticker}
+                    className="p-3 rounded-xl border shadow-sm hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      logWatchlistEvent("related_stock_click", { 
+                        from: stockData.ticker, 
+                        to: stock.ticker 
+                      })
+                      window.location.href = `/stock/${stock.ticker}`
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      {/* 왼쪽: 종목 정보 */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-foreground text-sm">{stock.nameKo || stock.name}</span>
+                          <span className="text-xs text-muted-foreground">{stock.ticker}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {stock.reason}
+                        </p>
+                      </div>
+                      
+                      {/* 오른쪽: 신호등 4개 */}
+                      <div className="flex items-center gap-1.5 ml-3">
+                        {stock.signals ? (
+                          <>
+                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.earning)}`} title="수익" />
+                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.debt)}`} title="빚" />
+                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.growth)}`} title="성장" />
+                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.valuation)}`} title="몸값" />
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-1" />
+                      </div>
                     </div>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    💡 {stock.reason}
-                  </p>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </section>
         )}
