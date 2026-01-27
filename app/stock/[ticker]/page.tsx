@@ -623,13 +623,13 @@ export default function StockDetailPage() {
                 </span>
               </div>
             </div>
-            {/* 컬럼 헤더 - 가로로 읽히게 */}
-            <div className="flex items-center justify-end mb-2 pr-8 text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-4">
-                <span>수익</span>
-                <span>빚</span>
-                <span>성장</span>
-                <span>몸값</span>
+            {/* 컬럼 헤더 - 신호등과 정확히 정렬 */}
+            <div className="flex items-center justify-end mb-2 pr-10 text-sm text-muted-foreground">
+              <div className="flex items-center">
+                <span className="w-[30px] text-center">수익</span>
+                <span className="w-[30px] text-center">빚</span>
+                <span className="w-[30px] text-center">성장</span>
+                <span className="w-[30px] text-center">몸값</span>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2">
@@ -669,7 +669,7 @@ export default function StockDetailPage() {
                       {/* 왼쪽: 종목 정보 */}
                       <div className="flex-1 min-w-0 mr-4">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="font-bold text-foreground text-base">{stock.nameKo || stock.name}</span>
+                          <span className="font-bold text-foreground text-lg">{stock.nameKo || stock.name}</span>
                           <span className="text-sm text-muted-foreground">{stock.ticker}</span>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">
@@ -677,19 +677,19 @@ export default function StockDetailPage() {
                         </p>
                       </div>
                       
-                      {/* 오른쪽: 신호등 4개 + 화살표 */}
-                      <div className="flex items-center gap-4 flex-shrink-0">
+                      {/* 오른쪽: 신호등 4개 + 화살표 (헤더와 정렬) */}
+                      <div className="flex items-center flex-shrink-0">
                         {stock.signals ? (
-                          <>
-                            <div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.earning)}`} />
-                            <div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.debt)}`} />
-                            <div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.growth)}`} />
-                            <div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.valuation)}`} />
-                          </>
+                          <div className="flex items-center">
+                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.earning)}`} /></span>
+                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.debt)}`} /></span>
+                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.growth)}`} /></span>
+                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.valuation)}`} /></span>
+                          </div>
                         ) : (
-                          <div className="w-[88px] text-center text-xs text-muted-foreground">-</div>
+                          <div className="w-[120px] text-center text-xs text-muted-foreground">-</div>
                         )}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-2" />
                       </div>
                     </div>
                   </Card>
