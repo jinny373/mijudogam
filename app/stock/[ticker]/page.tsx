@@ -599,7 +599,7 @@ export default function StockDetailPage() {
           </div>
         </section>
 
-        {/* v9.37: 관련 종목 추천 (신호등 포함) - UI 개선 */}
+        {/* v9.39: 관련 종목 추천 (신호등 포함) - UI 개선 */}
         {stockData.relatedStocks && stockData.relatedStocks.length > 0 && (
           <section className="pt-2">
             {/* 제목 + 범례 (핵심체크와 동일 스타일) */}
@@ -623,8 +623,8 @@ export default function StockDetailPage() {
                 </span>
               </div>
             </div>
-            {/* 컬럼 헤더 - 신호등과 정확히 정렬 */}
-            <div className="flex items-center justify-end mb-2 pr-10 text-sm text-muted-foreground">
+            {/* 컬럼 헤더 - 진한 검정 */}
+            <div className="flex items-center justify-end mb-2 pr-10 text-sm text-foreground font-medium">
               <div className="flex items-center">
                 <span className="w-[30px] text-center">수익</span>
                 <span className="w-[30px] text-center">빚</span>
@@ -668,9 +668,9 @@ export default function StockDetailPage() {
                     <div className="flex items-center justify-between">
                       {/* 왼쪽: 종목 정보 */}
                       <div className="flex-1 min-w-0 mr-4">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="font-bold text-foreground text-lg">{stock.nameKo || stock.name}</span>
-                          <span className="text-sm text-muted-foreground">{stock.ticker}</span>
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className="font-bold text-foreground text-lg truncate max-w-[150px]">{stock.nameKo || stock.name}</span>
+                          <span className="text-sm text-purple-600 font-medium">{stock.ticker}</span>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">
                           {stock.reason}
