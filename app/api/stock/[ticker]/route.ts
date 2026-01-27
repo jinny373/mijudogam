@@ -40,9 +40,10 @@ function statusToSignal(status: "green" | "yellow" | "red"): "good" | "normal" |
 async function calculateSignalsForTicker(ticker: string): Promise<SignalResult | null> {
   try {
     // ═══════════════════════════════════════════════════════════════
-    // 상세 페이지와 동일한 API 호출
+    // 상세 페이지와 동일한 API 호출 (quote 추가!)
     // ═══════════════════════════════════════════════════════════════
-    const [quoteSummary, fundamentals] = await Promise.all([
+    const [quote, quoteSummary, fundamentals] = await Promise.all([
+      yahooFinance.quote(ticker),
       yahooFinance.quoteSummary(ticker, {
         modules: [
           "financialData",
@@ -194,8 +195,11 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
     }
     const canUseQuarterlyGrowth = !hasRevenueGrowthData && fallbackGrowthRate !== null;
     
-    // PER
-    const per = keyStats?.trailingPE || keyStats?.forwardPE || financialData?.forwardPE || 0;
+    // PER (상세 페이지와 동일한 로직 - 397-399줄)
+    // v9.36: quote.trailingPE도 체크!
+    const trailingPER = keyStats?.trailingPE || quote?.trailingPE || 0;
+    const forwardPER = keyStats?.forwardPE || financialData?.forwardPE || 0;
+    const per = trailingPER > 0 ? trailingPER : forwardPER;
     const isNegativePER = per < 0;
     
     // ═══════════════════════════════════════════════════════════════
