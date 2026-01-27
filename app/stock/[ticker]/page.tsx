@@ -602,15 +602,17 @@ export default function StockDetailPage() {
         {/* v9.26: 관련 종목 추천 (신호등 포함) */}
         {stockData.relatedStocks && stockData.relatedStocks.length > 0 && (
           <section className="pt-2">
-            <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-              🔗 함께 보면 좋은 종목
-            </h2>
-            {/* 신호등 범례 */}
-            <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">💰 수익</span>
-              <span className="flex items-center gap-1">🏦 빚</span>
-              <span className="flex items-center gap-1">🚀 성장</span>
-              <span className="flex items-center gap-1">💎 몸값</span>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                🔗 함께 보면 좋은 종목
+              </h2>
+              {/* 신호등 범례 - 우측 정렬 */}
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span>💰</span>
+                <span>🏦</span>
+                <span>🚀</span>
+                <span>💎</span>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {stockData.relatedStocks.map((stock: { 
@@ -647,7 +649,7 @@ export default function StockDetailPage() {
                   >
                     <div className="flex items-center justify-between">
                       {/* 왼쪽: 종목 정보 */}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 mr-3">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="font-bold text-foreground text-sm">{stock.nameKo || stock.name}</span>
                           <span className="text-xs text-muted-foreground">{stock.ticker}</span>
@@ -657,19 +659,19 @@ export default function StockDetailPage() {
                         </p>
                       </div>
                       
-                      {/* 오른쪽: 신호등 4개 */}
-                      <div className="flex items-center gap-1.5 ml-3">
+                      {/* 오른쪽: 신호등 4개 + 화살표 (고정 너비) */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {stock.signals ? (
                           <>
-                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.earning)}`} title="수익" />
-                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.debt)}`} title="빚" />
-                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.growth)}`} title="성장" />
-                            <div className={`w-2.5 h-2.5 rounded-full ${getSignalColor(stock.signals.valuation)}`} title="몸값" />
+                            <div className={`w-3 h-3 rounded-full ${getSignalColor(stock.signals.earning)}`} title="수익" />
+                            <div className={`w-3 h-3 rounded-full ${getSignalColor(stock.signals.debt)}`} title="빚" />
+                            <div className={`w-3 h-3 rounded-full ${getSignalColor(stock.signals.growth)}`} title="성장" />
+                            <div className={`w-3 h-3 rounded-full ${getSignalColor(stock.signals.valuation)}`} title="몸값" />
                           </>
                         ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
+                          <div className="w-[76px] text-center text-xs text-muted-foreground">-</div>
                         )}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-1" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
                   </Card>
