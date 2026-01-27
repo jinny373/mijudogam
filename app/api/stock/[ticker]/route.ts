@@ -1721,88 +1721,52 @@ export async function GET(
       };
       
       // v9.26: 신호등 조회 (경량 버전)
-      const getSignals = async (ticker: string): Promise<{
+      // v9.31: 상세 API를 내부 호출해서 metrics[].status 그대로 가져오기
+      // 이렇게 하면 100% 일치 보장!
+      const getSignals = async (signalTicker: string): Promise<{
         earning: "good" | "normal" | "bad";
         debt: "good" | "normal" | "bad";
         growth: "good" | "normal" | "bad";
         valuation: "good" | "normal" | "bad";
       } | null> => {
         try {
-          // 상세 페이지와 동일한 modules 조회
-          const signalData = await yahooFinance.quoteSummary(ticker, {
-            modules: ["financialData", "defaultKeyStatistics", "balanceSheetHistoryQuarterly", "incomeStatementHistoryQuarterly"]
+          // 상세 API 내부 호출 (자기 자신의 API 로직 재사용)
+          const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+          
+          const response = await fetch(`${baseUrl}/api/stock/${signalTicker}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
           });
           
-          const fd = signalData.financialData;
-          const ks = signalData.defaultKeyStatistics;
-          const balanceSheet = signalData.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
-          const incomeSheet = signalData.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
-          
-          // === EARNING: ROE 기준 (상세 페이지와 동일) ===
-          // getStatus(roe, { good: 0.15, bad: 0.05 }, true)
-          const roe = fd?.returnOnEquity || 0;
-          const earningSignal = roe > 0.15 ? "good" : roe > 0.05 ? "normal" : "bad";
-          
-          // === DEBT: 부채비율 기준 (상세 페이지와 동일) ===
-          // getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false)
-          // 50% 이하 = good, 50~150% = normal, 150% 이상 = bad
-          let debtSignal: "good" | "normal" | "bad" = "normal";
-          let debtRatio = 0;
-          
-          if (balanceSheet.length > 0) {
-            const latestBS = balanceSheet[0];
-            const shortTermDebt = latestBS.shortLongTermDebt || latestBS.shortTermDebt || 0;
-            const longTermDebt = latestBS.longTermDebt || 0;
-            const totalDebt = shortTermDebt + longTermDebt;
-            const totalEquity = latestBS.totalStockholderEquity || latestBS.stockholdersEquity || 0;
-            debtRatio = totalEquity > 0 ? totalDebt / totalEquity : 0; // 비율 (0.5 = 50%)
-          } else {
-            // fallback: financialData.debtToEquity (이미 비율)
-            debtRatio = fd?.debtToEquity || 0;
+          if (!response.ok) {
+            console.error(`Failed to fetch signals for ${signalTicker}: ${response.status}`);
+            return null;
           }
-          // 상세 페이지와 동일: good < 0.5, bad > 1.5
-          debtSignal = debtRatio < 0.5 ? "good" : debtRatio < 1.5 ? "normal" : "bad";
           
-          // === GROWTH: 매출 성장률 기준 (상세 페이지와 동일) ===
-          // getStatus(revenueGrowth, { good: 0.15, bad: 0 }, true)
-          // 15% 이상 = good, 0~15% = normal, 0% 이하 = bad
-          let growthSignal: "good" | "normal" | "bad" = "normal";
-          let revenueGrowth = 0;
+          const data = await response.json();
           
-          if (incomeSheet.length >= 2) {
-            const latestRevenue = incomeSheet[0]?.totalRevenue || 0;
-            const prevRevenue = incomeSheet[1]?.totalRevenue || 0;
-            revenueGrowth = prevRevenue > 0 ? (latestRevenue - prevRevenue) / prevRevenue : 0;
-          } else {
-            revenueGrowth = fd?.revenueGrowth || 0;
-          }
-          growthSignal = revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad";
+          // metrics 배열에서 status 추출 (green/yellow/red → good/normal/bad)
+          const statusMap: Record<string, "good" | "normal" | "bad"> = {
+            "green": "good",
+            "yellow": "normal", 
+            "red": "bad"
+          };
           
-          // === VALUATION: PER 기준 (상세 페이지와 동일) ===
-          // getStatus(per, { good: 40, bad: 60 }, false)
-          // 40 이하 = good, 40~60 = normal, 60 이상 = bad
-          // 적자(PER 음수)는 yellow 처리
-          const per = ks?.trailingPE || ks?.forwardPE || 0;
-          let valuationSignal: "good" | "normal" | "bad" = "normal";
-          
-          if (per <= 0) {
-            valuationSignal = "normal"; // 적자 기업은 yellow (상세와 동일)
-          } else if (per < 40) {
-            valuationSignal = "good";
-          } else if (per < 60) {
-            valuationSignal = "normal";
-          } else {
-            valuationSignal = "bad";
-          }
+          const earningMetric = data.metrics?.find((m: any) => m.id === "earning");
+          const debtMetric = data.metrics?.find((m: any) => m.id === "debt");
+          const growthMetric = data.metrics?.find((m: any) => m.id === "growth");
+          const valuationMetric = data.metrics?.find((m: any) => m.id === "valuation");
           
           return {
-            earning: earningSignal,
-            debt: debtSignal,
-            growth: growthSignal,
-            valuation: valuationSignal,
+            earning: statusMap[earningMetric?.status] || "normal",
+            debt: statusMap[debtMetric?.status] || "normal",
+            growth: statusMap[growthMetric?.status] || "normal",
+            valuation: statusMap[valuationMetric?.status] || "normal",
           };
         } catch (error) {
-          console.error(`Signal fetch error for ${ticker}:`, error);
+          console.error(`Signal fetch error for ${signalTicker}:`, error);
           return null;
         }
       };
