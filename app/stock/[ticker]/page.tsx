@@ -631,7 +631,7 @@ export default function StockDetailPage() {
             {/* Table */}
             <Card className="rounded-2xl border shadow-sm overflow-hidden p-0">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2.5 bg-muted/40 border-b">
+              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2 bg-muted/40">
                 <div className="text-sm font-bold text-foreground">종목</div>
                 <div className="text-xs sm:text-sm font-bold text-foreground text-center">수익</div>
                 <div className="text-xs sm:text-sm font-bold text-foreground text-center">빚</div>
@@ -665,7 +665,7 @@ export default function StockDetailPage() {
                   return (
                     <div
                       key={stock.ticker}
-                      className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-3.5 hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group"
+                      className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2.5 hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group"
                       onClick={() => {
                         logWatchlistEvent("related_stock_click", { 
                           from: stockData.ticker, 
