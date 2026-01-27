@@ -631,13 +631,15 @@ export default function StockDetailPage() {
             {/* Table */}
             <Card className="rounded-2xl border shadow-sm overflow-hidden p-0">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2 bg-muted/40 border-b border-border/60">
-                <div className="text-sm font-bold text-foreground">종목</div>
-                <div className="text-sm font-bold text-foreground text-center">수익</div>
-                <div className="text-sm font-bold text-foreground text-center">빚</div>
-                <div className="text-sm font-bold text-foreground text-center">성장</div>
-                <div className="text-sm font-bold text-foreground text-center">몸값</div>
-                <div />
+              <div className="flex items-center px-4 h-[44px] bg-muted/40 border-b border-border/60">
+                <div className="flex-1 text-sm font-bold text-foreground">종목</div>
+                <div className="flex items-center gap-0">
+                  <div className="w-[40px] sm:w-[52px] text-sm font-bold text-foreground text-center">수익</div>
+                  <div className="w-[40px] sm:w-[52px] text-sm font-bold text-foreground text-center">빚</div>
+                  <div className="w-[40px] sm:w-[52px] text-sm font-bold text-foreground text-center">성장</div>
+                  <div className="w-[40px] sm:w-[52px] text-sm font-bold text-foreground text-center">몸값</div>
+                </div>
+                <div className="w-[28px] sm:w-[36px]" />
               </div>
 
               {/* Table Body - 첫 번째 행은 border-t 없음 */}
@@ -664,7 +666,7 @@ export default function StockDetailPage() {
                 return (
                   <div
                     key={stock.ticker}
-                    className={`grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 min-h-[60px] hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group ${index > 0 ? 'border-t border-border/60' : ''}`}
+                    className={`flex items-center px-4 h-[72px] hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group ${index > 0 ? 'border-t border-border/60' : ''}`}
                     onClick={() => {
                       logWatchlistEvent("related_stock_click", { 
                         from: stockData.ticker, 
@@ -674,7 +676,7 @@ export default function StockDetailPage() {
                     }}
                   >
                       {/* Stock Info */}
-                      <div className="min-w-0 pr-2 py-2">
+                      <div className="flex-1 min-w-0 pr-2">
                         <span className="font-bold text-foreground truncate block text-base sm:text-lg leading-tight">{stock.nameKo || stock.name}</span>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-xs font-semibold text-purple-600">{stock.ticker}</span>
@@ -682,33 +684,35 @@ export default function StockDetailPage() {
                         </div>
                       </div>
 
-                      {/* Metrics */}
-                      {stock.signals ? (
-                        <>
-                          <div className="flex justify-center items-center h-full">
-                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.earning)}`} />
-                          </div>
-                          <div className="flex justify-center items-center h-full">
-                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.debt)}`} />
-                          </div>
-                          <div className="flex justify-center items-center h-full">
-                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.growth)}`} />
-                          </div>
-                          <div className="flex justify-center items-center h-full">
-                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.valuation)}`} />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                        </>
-                      )}
+                      {/* Metrics - 고정 너비 */}
+                      <div className="flex items-center gap-0">
+                        {stock.signals ? (
+                          <>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center">
+                              <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.earning)}`} />
+                            </div>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center">
+                              <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.debt)}`} />
+                            </div>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center">
+                              <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.growth)}`} />
+                            </div>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center">
+                              <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.valuation)}`} />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                            <div className="w-[40px] sm:w-[52px] flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          </>
+                        )}
+                      </div>
 
                       {/* Arrow */}
-                      <div className="flex justify-center items-center h-full">
+                      <div className="w-[28px] sm:w-[36px] flex justify-center">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center group-hover:bg-purple-100 transition-colors">
                           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
                         </div>
