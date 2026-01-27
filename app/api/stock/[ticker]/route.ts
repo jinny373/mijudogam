@@ -1728,28 +1728,73 @@ export async function GET(
         valuation: "good" | "normal" | "bad";
       } | null> => {
         try {
+          // 상세 페이지와 동일한 modules 조회
           const signalData = await yahooFinance.quoteSummary(ticker, {
-            modules: ["financialData", "defaultKeyStatistics"]
+            modules: ["financialData", "defaultKeyStatistics", "balanceSheetHistoryQuarterly", "incomeStatementHistoryQuarterly"]
           });
           
           const fd = signalData.financialData;
           const ks = signalData.defaultKeyStatistics;
+          const balanceSheet = signalData.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
+          const incomeSheet = signalData.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
           
+          // === EARNING: ROE 기준 (상세 페이지와 동일) ===
           const roe = fd?.returnOnEquity || 0;
-          // debtToEquity는 비율(0.5 = 50%)로 반환됨
-          const debtRatio = (fd?.debtToEquity || 0) * 100; // % 단위로 변환
-          const revenueGrowth = fd?.revenueGrowth || 0;
-          const per = ks?.forwardPE || ks?.trailingPE || 0;
+          // ROE: 15%↑ 우수, 5%↑ 보통, 5%↓ 주의
+          const earningSignal = roe > 0.15 ? "good" : roe > 0.05 ? "normal" : "bad";
+          
+          // === DEBT: 분기 balanceSheet에서 직접 계산 (상세 페이지와 동일) ===
+          let debtSignal: "good" | "normal" | "bad" = "normal";
+          if (balanceSheet.length > 0) {
+            const latestBS = balanceSheet[0]; // 최신 분기
+            const shortTermDebt = latestBS.shortLongTermDebt || latestBS.shortTermDebt || 0;
+            const longTermDebt = latestBS.longTermDebt || 0;
+            const totalDebt = shortTermDebt + longTermDebt;
+            const totalEquity = latestBS.totalStockholderEquity || latestBS.stockholdersEquity || 0;
+            const debtRatio = totalEquity > 0 ? (totalDebt / totalEquity) * 100 : 0;
+            // 부채비율: 30%↓ 우수, 100%↓ 보통, 100%↑ 주의 (상세 페이지와 동일)
+            debtSignal = debtRatio < 30 ? "good" : debtRatio < 100 ? "normal" : "bad";
+          } else {
+            // fallback: financialData 사용
+            const debtRatio = (fd?.debtToEquity || 0) * 100;
+            debtSignal = debtRatio < 30 ? "good" : debtRatio < 100 ? "normal" : "bad";
+          }
+          
+          // === GROWTH: 분기 매출 성장률 (상세 페이지와 동일) ===
+          let growthSignal: "good" | "normal" | "bad" = "normal";
+          if (incomeSheet.length >= 2) {
+            const latestRevenue = incomeSheet[0]?.totalRevenue || 0;
+            const prevRevenue = incomeSheet[1]?.totalRevenue || 0;
+            const qoqGrowth = prevRevenue > 0 ? (latestRevenue - prevRevenue) / prevRevenue : 0;
+            // 분기 성장률: 15%↑ 고성장, 0%↑ 성장, 0%↓ 둔화 (상세 페이지와 동일)
+            growthSignal = qoqGrowth > 0.15 ? "good" : qoqGrowth > 0 ? "normal" : "bad";
+          } else {
+            // fallback: revenueGrowth 사용
+            const revenueGrowth = fd?.revenueGrowth || 0;
+            growthSignal = revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad";
+          }
+          
+          // === VALUATION: PER 기준 (상세 페이지와 동일) ===
+          const per = ks?.trailingPE || ks?.forwardPE || 0;
+          // PER: 15~40 보통, 40↑ 높음 (성장주 기준)
+          let valuationSignal: "good" | "normal" | "bad" = "normal";
+          if (per <= 0) {
+            valuationSignal = "bad"; // 적자 기업
+          } else if (per < 15) {
+            valuationSignal = "good"; // 저평가
+          } else if (per < 40) {
+            valuationSignal = "good"; // 보통 (성장주 기준 OK)
+          } else if (per < 60) {
+            valuationSignal = "normal"; // 높은 편
+          } else {
+            valuationSignal = "bad"; // 매우 높음
+          }
           
           return {
-            // ROE: 15%↑ 우수, 5%↑ 보통, 5%↓ 주의
-            earning: roe > 0.15 ? "good" : roe > 0.05 ? "normal" : "bad",
-            // 부채비율: 30%↓ 우수, 100%↓ 보통, 100%↑ 주의 (상세 페이지와 동일)
-            debt: debtRatio < 30 ? "good" : debtRatio < 100 ? "normal" : "bad",
-            // 성장률: 15%↑ 우수, 0%↑ 보통, 0%↓ 주의
-            growth: revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad",
-            // PER: 25↓ 저평가, 50↓ 보통, 50↑ 고평가
-            valuation: per > 0 && per < 25 ? "good" : per > 0 && per < 50 ? "normal" : "bad",
+            earning: earningSignal,
+            debt: debtSignal,
+            growth: growthSignal,
+            valuation: valuationSignal,
           };
         } catch (error) {
           console.error(`Signal fetch error for ${ticker}:`, error);
