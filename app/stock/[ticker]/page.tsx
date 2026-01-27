@@ -631,49 +631,48 @@ export default function StockDetailPage() {
             {/* Table */}
             <Card className="rounded-2xl border shadow-sm overflow-hidden p-0">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2 bg-muted/40">
+              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2 bg-muted/40 border-b border-border/60">
                 <div className="text-sm font-bold text-foreground">종목</div>
-                <div className="text-xs sm:text-sm font-bold text-foreground text-center">수익</div>
-                <div className="text-xs sm:text-sm font-bold text-foreground text-center">빚</div>
-                <div className="text-xs sm:text-sm font-bold text-foreground text-center">성장</div>
-                <div className="text-xs sm:text-sm font-bold text-foreground text-center">몸값</div>
+                <div className="text-sm font-bold text-foreground text-center">수익</div>
+                <div className="text-sm font-bold text-foreground text-center">빚</div>
+                <div className="text-sm font-bold text-foreground text-center">성장</div>
+                <div className="text-sm font-bold text-foreground text-center">몸값</div>
                 <div />
               </div>
 
-              {/* Table Body */}
-              <div className="divide-y divide-border/60">
-                {stockData.relatedStocks.map((stock: { 
-                  ticker: string; 
-                  name: string; 
-                  nameKo: string; 
-                  reason: string;
-                  signals?: {
-                    earning: "good" | "normal" | "bad";
-                    debt: "good" | "normal" | "bad";
-                    growth: "good" | "normal" | "bad";
-                    valuation: "good" | "normal" | "bad";
-                  } | null;
-                }) => {
-                  // 신호등 색상 매핑
-                  const getRatingClass = (signal?: "good" | "normal" | "bad") => {
-                    if (!signal) return "bg-gray-300";
-                    if (signal === "good") return "bg-emerald-500 shadow-emerald-500/30";
-                    if (signal === "normal") return "bg-amber-400 shadow-amber-400/30";
-                    return "bg-rose-500 shadow-rose-500/30";
-                  };
-                  
-                  return (
-                    <div
-                      key={stock.ticker}
-                      className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2.5 hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group"
-                      onClick={() => {
-                        logWatchlistEvent("related_stock_click", { 
-                          from: stockData.ticker, 
-                          to: stock.ticker 
-                        })
-                        window.location.href = `/stock/${stock.ticker}`
-                      }}
-                    >
+              {/* Table Body - 첫 번째 행은 border-t 없음 */}
+              {stockData.relatedStocks.map((stock: { 
+                ticker: string; 
+                name: string; 
+                nameKo: string; 
+                reason: string;
+                signals?: {
+                  earning: "good" | "normal" | "bad";
+                  debt: "good" | "normal" | "bad";
+                  growth: "good" | "normal" | "bad";
+                  valuation: "good" | "normal" | "bad";
+                } | null;
+              }, index: number) => {
+                // 신호등 색상 매핑
+                const getRatingClass = (signal?: "good" | "normal" | "bad") => {
+                  if (!signal) return "bg-gray-300";
+                  if (signal === "good") return "bg-emerald-500 shadow-emerald-500/30";
+                  if (signal === "normal") return "bg-amber-400 shadow-amber-400/30";
+                  return "bg-rose-500 shadow-rose-500/30";
+                };
+                
+                return (
+                  <div
+                    key={stock.ticker}
+                    className={`grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2.5 hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group ${index > 0 ? 'border-t border-border/60' : ''}`}
+                    onClick={() => {
+                      logWatchlistEvent("related_stock_click", { 
+                        from: stockData.ticker, 
+                        to: stock.ticker 
+                      })
+                      window.location.href = `/stock/${stock.ticker}`
+                    }}
+                  >
                       {/* Stock Info */}
                       <div className="min-w-0 pr-2">
                         <span className="font-bold text-foreground truncate block text-base sm:text-lg">{stock.nameKo || stock.name}</span>
@@ -717,7 +716,6 @@ export default function StockDetailPage() {
                     </div>
                   );
                 })}
-              </div>
             </Card>
           </section>
         )}
