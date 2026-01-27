@@ -151,9 +151,37 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
     const hasQuarterlyDebtData = quarterlyDebtTrend.length > 0 && latestQuarterDebt?.debtToEquity !== null;
     const displayDebtToEquity = hasQuarterlyDebtData ? latestQuarterDebtToEquity : debtToEquity;
     
-    // 성장률 (상세 페이지와 동일한 로직)
-    const revenueGrowth = financialData?.revenueGrowth || 0;
-    const hasRevenueGrowthData = revenueGrowth !== 0 && !isNaN(revenueGrowth);
+    // 성장률 (상세 페이지와 동일한 로직 - 직접 계산 우선)
+    // v9.35: financialData.revenueGrowth 대신 직접 계산
+    let revenueGrowthCalc: number | null = null;
+    
+    if (incomeHistory.length >= 2) {
+      // 연간 재무제표 히스토리가 있으면 직접 계산
+      const currentRev = incomeHistory[0]?.totalRevenue || 0;
+      const previousRev = incomeHistory[1]?.totalRevenue || 0;
+      if (previousRev > 0) {
+        revenueGrowthCalc = (currentRev - previousRev) / Math.abs(previousRev);
+      }
+    } else if (fundamentalsQuarterly.length >= 5) {
+      // fundamentalsTimeSeries에서 연간 성장률 계산
+      const recentFour = fundamentalsQuarterly.slice(-4);
+      const previousFour = fundamentalsQuarterly.slice(-8, -4);
+      
+      const revenueCurrentYear = recentFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyTotalRevenue || f.totalRevenue || 0), 0);
+      const revenuePreviousYear = previousFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyTotalRevenue || f.totalRevenue || 0), 0);
+      
+      if (revenuePreviousYear > 0) {
+        revenueGrowthCalc = (revenueCurrentYear - revenuePreviousYear) / Math.abs(revenuePreviousYear);
+      }
+    } else {
+      // 둘 다 없으면 financialData에서 가져오기
+      revenueGrowthCalc = financialData?.revenueGrowth || null;
+    }
+    
+    const hasRevenueGrowthData = revenueGrowthCalc !== null && !isNaN(revenueGrowthCalc);
+    const revenueGrowth = revenueGrowthCalc ?? 0;
     
     // 분기별 성장률 fallback
     let fallbackGrowthRate: number | null = null;
