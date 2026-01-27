@@ -3,6 +3,133 @@ import YahooFinance from "yahoo-finance2";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
+// ═══════════════════════════════════════════════════════════════
+// v9.32: 신호등 계산 공통 함수 (상세 페이지 & 추천 신호등 모두 사용)
+// ═══════════════════════════════════════════════════════════════
+interface SignalResult {
+  earning: "good" | "normal" | "bad";
+  debt: "good" | "normal" | "bad";
+  growth: "good" | "normal" | "bad";
+  valuation: "good" | "normal" | "bad";
+}
+
+async function calculateSignalsForTicker(ticker: string): Promise<SignalResult | null> {
+  try {
+    const data = await yahooFinance.quoteSummary(ticker, {
+      modules: [
+        "financialData",
+        "defaultKeyStatistics", 
+        "incomeStatementHistory",
+        "incomeStatementHistoryQuarterly",
+        "balanceSheetHistory",
+        "balanceSheetHistoryQuarterly",
+        "cashflowStatementHistory",
+      ]
+    });
+    
+    const fd = data.financialData;
+    const ks = data.defaultKeyStatistics;
+    const bsQuarterly = data.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
+    const isQuarterly = data.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const cfHistory = data.cashflowStatementHistory?.cashflowStatements || [];
+    
+    // ═══════════════════════════════════════════════════════════════
+    // EARNING: ROE + OCF 체크 (상세 페이지와 동일)
+    // getStatus(roe, { good: 0.15, bad: 0.05 }, true)
+    // OCF 마이너스면 red
+    // ═══════════════════════════════════════════════════════════════
+    const roe = fd?.returnOnEquity || 0;
+    const ocf = cfHistory.length > 0 ? (cfHistory[0]?.totalCashFromOperatingActivities || 0) : 0;
+    const isNegativeOCF = ocf < 0;
+    
+    let earningSignal: "good" | "normal" | "bad";
+    if (isNegativeOCF) {
+      earningSignal = "bad";
+    } else if (roe > 0.15) {
+      earningSignal = "good";
+    } else if (roe > 0.05) {
+      earningSignal = "normal";
+    } else {
+      earningSignal = "bad";
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // DEBT: 부채비율 (상세 페이지와 동일)
+    // getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false)
+    // ═══════════════════════════════════════════════════════════════
+    let debtRatio = 0;
+    if (bsQuarterly.length > 0) {
+      const latestBS = bsQuarterly[0];
+      const shortDebt = latestBS.shortLongTermDebt || latestBS.shortTermDebt || 0;
+      const longDebt = latestBS.longTermDebt || 0;
+      const totalDebt = shortDebt + longDebt;
+      const totalEquity = latestBS.totalStockholderEquity || latestBS.stockholdersEquity || 0;
+      debtRatio = totalEquity > 0 ? totalDebt / totalEquity : 0;
+    } else {
+      debtRatio = fd?.debtToEquity || 0;
+    }
+    
+    let debtSignal: "good" | "normal" | "bad";
+    if (debtRatio < 0.5) {
+      debtSignal = "good";
+    } else if (debtRatio < 1.5) {
+      debtSignal = "normal";
+    } else {
+      debtSignal = "bad";
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // GROWTH: 분기 매출 성장률 (상세 페이지와 동일)
+    // getStatus(revenueGrowth, { good: 0.15, bad: 0 }, true)
+    // ═══════════════════════════════════════════════════════════════
+    let qoqGrowth = 0;
+    if (isQuarterly.length >= 2) {
+      const latestRev = isQuarterly[0]?.totalRevenue || 0;
+      const prevRev = isQuarterly[1]?.totalRevenue || 0;
+      qoqGrowth = prevRev > 0 ? (latestRev - prevRev) / prevRev : 0;
+    } else {
+      qoqGrowth = fd?.revenueGrowth || 0;
+    }
+    
+    let growthSignal: "good" | "normal" | "bad";
+    if (qoqGrowth > 0.15) {
+      growthSignal = "good";
+    } else if (qoqGrowth > 0) {
+      growthSignal = "normal";
+    } else {
+      growthSignal = "bad";
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // VALUATION: PER (상세 페이지와 동일)
+    // getStatus(per, { good: 40, bad: 60 }, false)
+    // 적자(PER <= 0)는 yellow
+    // ═══════════════════════════════════════════════════════════════
+    const per = ks?.trailingPE || ks?.forwardPE || 0;
+    
+    let valuationSignal: "good" | "normal" | "bad";
+    if (per <= 0) {
+      valuationSignal = "normal"; // 적자 = yellow
+    } else if (per < 40) {
+      valuationSignal = "good";
+    } else if (per < 60) {
+      valuationSignal = "normal";
+    } else {
+      valuationSignal = "bad";
+    }
+    
+    return {
+      earning: earningSignal,
+      debt: debtSignal,
+      growth: growthSignal,
+      valuation: valuationSignal,
+    };
+  } catch (error) {
+    console.error(`calculateSignalsForTicker error for ${ticker}:`, error);
+    return null;
+  }
+}
+
 // 신호등 판단 기준
 function getStatus(
   value: number,
@@ -1720,55 +1847,14 @@ export async function GET(
         ],
       };
       
-      // v9.26: 신호등 조회 (경량 버전)
-      // v9.31: 상세 API를 내부 호출해서 metrics[].status 그대로 가져오기
-      // 이렇게 하면 100% 일치 보장!
+      // v9.32: 공통 함수 사용으로 상세 페이지와 100% 동일한 신호등
       const getSignals = async (signalTicker: string): Promise<{
         earning: "good" | "normal" | "bad";
         debt: "good" | "normal" | "bad";
         growth: "good" | "normal" | "bad";
         valuation: "good" | "normal" | "bad";
       } | null> => {
-        try {
-          // 상세 API 내부 호출 (자기 자신의 API 로직 재사용)
-          const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-          
-          const response = await fetch(`${baseUrl}/api/stock/${signalTicker}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          });
-          
-          if (!response.ok) {
-            console.error(`Failed to fetch signals for ${signalTicker}: ${response.status}`);
-            return null;
-          }
-          
-          const data = await response.json();
-          
-          // metrics 배열에서 status 추출 (green/yellow/red → good/normal/bad)
-          const statusMap: Record<string, "good" | "normal" | "bad"> = {
-            "green": "good",
-            "yellow": "normal", 
-            "red": "bad"
-          };
-          
-          const earningMetric = data.metrics?.find((m: any) => m.id === "earning");
-          const debtMetric = data.metrics?.find((m: any) => m.id === "debt");
-          const growthMetric = data.metrics?.find((m: any) => m.id === "growth");
-          const valuationMetric = data.metrics?.find((m: any) => m.id === "valuation");
-          
-          return {
-            earning: statusMap[earningMetric?.status] || "normal",
-            debt: statusMap[debtMetric?.status] || "normal",
-            growth: statusMap[growthMetric?.status] || "normal",
-            valuation: statusMap[valuationMetric?.status] || "normal",
-          };
-        } catch (error) {
-          console.error(`Signal fetch error for ${signalTicker}:`, error);
-          return null;
-        }
+        return await calculateSignalsForTicker(signalTicker);
       };
       
       // 1. 특정 종목 연관이 있으면 우선 사용
