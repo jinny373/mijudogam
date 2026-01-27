@@ -1739,55 +1739,60 @@ export async function GET(
           const incomeSheet = signalData.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
           
           // === EARNING: ROE 기준 (상세 페이지와 동일) ===
+          // getStatus(roe, { good: 0.15, bad: 0.05 }, true)
           const roe = fd?.returnOnEquity || 0;
-          // ROE: 15%↑ 우수, 5%↑ 보통, 5%↓ 주의
           const earningSignal = roe > 0.15 ? "good" : roe > 0.05 ? "normal" : "bad";
           
-          // === DEBT: 분기 balanceSheet에서 직접 계산 (상세 페이지와 동일) ===
+          // === DEBT: 부채비율 기준 (상세 페이지와 동일) ===
+          // getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false)
+          // 50% 이하 = good, 50~150% = normal, 150% 이상 = bad
           let debtSignal: "good" | "normal" | "bad" = "normal";
+          let debtRatio = 0;
+          
           if (balanceSheet.length > 0) {
-            const latestBS = balanceSheet[0]; // 최신 분기
+            const latestBS = balanceSheet[0];
             const shortTermDebt = latestBS.shortLongTermDebt || latestBS.shortTermDebt || 0;
             const longTermDebt = latestBS.longTermDebt || 0;
             const totalDebt = shortTermDebt + longTermDebt;
             const totalEquity = latestBS.totalStockholderEquity || latestBS.stockholdersEquity || 0;
-            const debtRatio = totalEquity > 0 ? (totalDebt / totalEquity) * 100 : 0;
-            // 부채비율: 30%↓ 우수, 100%↓ 보통, 100%↑ 주의 (상세 페이지와 동일)
-            debtSignal = debtRatio < 30 ? "good" : debtRatio < 100 ? "normal" : "bad";
+            debtRatio = totalEquity > 0 ? totalDebt / totalEquity : 0; // 비율 (0.5 = 50%)
           } else {
-            // fallback: financialData 사용
-            const debtRatio = (fd?.debtToEquity || 0) * 100;
-            debtSignal = debtRatio < 30 ? "good" : debtRatio < 100 ? "normal" : "bad";
+            // fallback: financialData.debtToEquity (이미 비율)
+            debtRatio = fd?.debtToEquity || 0;
           }
+          // 상세 페이지와 동일: good < 0.5, bad > 1.5
+          debtSignal = debtRatio < 0.5 ? "good" : debtRatio < 1.5 ? "normal" : "bad";
           
-          // === GROWTH: 분기 매출 성장률 (상세 페이지와 동일) ===
+          // === GROWTH: 매출 성장률 기준 (상세 페이지와 동일) ===
+          // getStatus(revenueGrowth, { good: 0.15, bad: 0 }, true)
+          // 15% 이상 = good, 0~15% = normal, 0% 이하 = bad
           let growthSignal: "good" | "normal" | "bad" = "normal";
+          let revenueGrowth = 0;
+          
           if (incomeSheet.length >= 2) {
             const latestRevenue = incomeSheet[0]?.totalRevenue || 0;
             const prevRevenue = incomeSheet[1]?.totalRevenue || 0;
-            const qoqGrowth = prevRevenue > 0 ? (latestRevenue - prevRevenue) / prevRevenue : 0;
-            // 분기 성장률: 15%↑ 고성장, 0%↑ 성장, 0%↓ 둔화 (상세 페이지와 동일)
-            growthSignal = qoqGrowth > 0.15 ? "good" : qoqGrowth > 0 ? "normal" : "bad";
+            revenueGrowth = prevRevenue > 0 ? (latestRevenue - prevRevenue) / prevRevenue : 0;
           } else {
-            // fallback: revenueGrowth 사용
-            const revenueGrowth = fd?.revenueGrowth || 0;
-            growthSignal = revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad";
+            revenueGrowth = fd?.revenueGrowth || 0;
           }
+          growthSignal = revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad";
           
           // === VALUATION: PER 기준 (상세 페이지와 동일) ===
+          // getStatus(per, { good: 40, bad: 60 }, false)
+          // 40 이하 = good, 40~60 = normal, 60 이상 = bad
+          // 적자(PER 음수)는 yellow 처리
           const per = ks?.trailingPE || ks?.forwardPE || 0;
-          // PER: 15~40 보통, 40↑ 높음 (성장주 기준)
           let valuationSignal: "good" | "normal" | "bad" = "normal";
+          
           if (per <= 0) {
-            valuationSignal = "bad"; // 적자 기업
-          } else if (per < 15) {
-            valuationSignal = "good"; // 저평가
+            valuationSignal = "normal"; // 적자 기업은 yellow (상세와 동일)
           } else if (per < 40) {
-            valuationSignal = "good"; // 보통 (성장주 기준 OK)
+            valuationSignal = "good";
           } else if (per < 60) {
-            valuationSignal = "normal"; // 높은 편
+            valuationSignal = "normal";
           } else {
-            valuationSignal = "bad"; // 매우 높음
+            valuationSignal = "bad";
           }
           
           return {
