@@ -600,103 +600,125 @@ export default function StockDetailPage() {
           </div>
         </section>
 
-        {/* v9.39: 관련 종목 추천 (신호등 포함) - UI 개선 */}
+        {/* v9.41: 관련 종목 추천 - 테이블 스타일 UI */}
         {stockData.relatedStocks && stockData.relatedStocks.length > 0 && (
           <section className="pt-2">
-            {/* 제목 + 범례 (핵심체크와 동일 스타일) */}
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-foreground">
-                🔗 함께 보면 좋은 종목
-              </h2>
-              {/* 신호등 범례 - 핵심체크와 동일 스타일 */}
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                  <span>좋음</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
-                  <span>보통</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                  <span>주의</span>
-                </span>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <span className="text-lg">🔗</span>
+                </div>
+                <h2 className="text-lg font-bold text-foreground">함께 보면 좋은 종목</h2>
+              </div>
+              {/* 범례 */}
+              <div className="flex items-center gap-3 text-xs bg-muted/50 rounded-full px-3 py-1.5 w-fit">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-muted-foreground">좋음</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="text-muted-foreground">보통</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-muted-foreground">주의</span>
+                </div>
               </div>
             </div>
-            {/* 컬럼 헤더 - 진한 검정 */}
-            <div className="flex items-center justify-end mb-2 pr-10 text-sm text-foreground font-medium">
-              <div className="flex items-center">
-                <span className="w-[30px] text-center">수익</span>
-                <span className="w-[30px] text-center">빚</span>
-                <span className="w-[30px] text-center">성장</span>
-                <span className="w-[30px] text-center">몸값</span>
+
+            {/* Table */}
+            <Card className="rounded-2xl border shadow-sm overflow-hidden p-0">
+              {/* Table Header */}
+              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-3 bg-muted/40 border-b">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">종목</div>
+                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">수익</div>
+                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">빚</div>
+                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">성장</div>
+                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">몸값</div>
+                <div />
               </div>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {stockData.relatedStocks.map((stock: { 
-                ticker: string; 
-                name: string; 
-                nameKo: string; 
-                reason: string;
-                signals?: {
-                  earning: "good" | "normal" | "bad";
-                  debt: "good" | "normal" | "bad";
-                  growth: "good" | "normal" | "bad";
-                  valuation: "good" | "normal" | "bad";
-                } | null;
-              }) => {
-                // 신호등 색상 매핑
-                const getSignalColor = (signal?: "good" | "normal" | "bad") => {
-                  if (!signal) return "bg-gray-300";
-                  if (signal === "good") return "bg-green-500";
-                  if (signal === "normal") return "bg-yellow-500";
-                  return "bg-red-500";
-                };
-                
-                return (
-                  <Card 
-                    key={stock.ticker}
-                    className="p-4 rounded-xl border shadow-sm hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => {
-                      logWatchlistEvent("related_stock_click", { 
-                        from: stockData.ticker, 
-                        to: stock.ticker 
-                      })
-                      window.location.href = `/stock/${stock.ticker}`
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      {/* 왼쪽: 종목 정보 */}
-                      <div className="flex-1 min-w-0 mr-4">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className="font-bold text-foreground text-lg truncate max-w-[150px]">{stock.nameKo || stock.name}</span>
-                          <span className="text-sm text-purple-600 font-medium">{stock.ticker}</span>
+
+              {/* Table Body */}
+              <div className="divide-y divide-border/60">
+                {stockData.relatedStocks.map((stock: { 
+                  ticker: string; 
+                  name: string; 
+                  nameKo: string; 
+                  reason: string;
+                  signals?: {
+                    earning: "good" | "normal" | "bad";
+                    debt: "good" | "normal" | "bad";
+                    growth: "good" | "normal" | "bad";
+                    valuation: "good" | "normal" | "bad";
+                  } | null;
+                }) => {
+                  // 신호등 색상 매핑
+                  const getRatingClass = (signal?: "good" | "normal" | "bad") => {
+                    if (!signal) return "bg-gray-300";
+                    if (signal === "good") return "bg-emerald-500 shadow-emerald-500/30";
+                    if (signal === "normal") return "bg-amber-400 shadow-amber-400/30";
+                    return "bg-rose-500 shadow-rose-500/30";
+                  };
+                  
+                  return (
+                    <div
+                      key={stock.ticker}
+                      className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-3.5 hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group"
+                      onClick={() => {
+                        logWatchlistEvent("related_stock_click", { 
+                          from: stockData.ticker, 
+                          to: stock.ticker 
+                        })
+                        window.location.href = `/stock/${stock.ticker}`
+                      }}
+                    >
+                      {/* Stock Info */}
+                      <div className="min-w-0 pr-2">
+                        <span className="font-bold text-foreground truncate block text-base sm:text-lg">{stock.nameKo || stock.name}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-xs font-semibold text-purple-600">{stock.ticker}</span>
+                          <span className="text-[11px] text-muted-foreground truncate">{stock.reason}</span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {stock.reason}
-                        </p>
                       </div>
-                      
-                      {/* 오른쪽: 신호등 4개 + 화살표 (헤더와 정렬) */}
-                      <div className="flex items-center flex-shrink-0">
-                        {stock.signals ? (
-                          <div className="flex items-center">
-                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.earning)}`} /></span>
-                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.debt)}`} /></span>
-                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.growth)}`} /></span>
-                            <span className="w-[30px] flex justify-center"><div className={`w-3.5 h-3.5 rounded-full ${getSignalColor(stock.signals.valuation)}`} /></span>
+
+                      {/* Metrics */}
+                      {stock.signals ? (
+                        <>
+                          <div className="flex justify-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.earning)}`} />
                           </div>
-                        ) : (
-                          <div className="w-[120px] text-center text-xs text-muted-foreground">-</div>
-                        )}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-2" />
+                          <div className="flex justify-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.debt)}`} />
+                          </div>
+                          <div className="flex justify-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.growth)}`} />
+                          </div>
+                          <div className="flex justify-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.valuation)}`} />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                        </>
+                      )}
+
+                      {/* Arrow */}
+                      <div className="flex justify-center">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                        </div>
                       </div>
                     </div>
-                  </Card>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </Card>
           </section>
         )}
 
