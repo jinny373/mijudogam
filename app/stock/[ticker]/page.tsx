@@ -631,12 +631,12 @@ export default function StockDetailPage() {
             {/* Table */}
             <Card className="rounded-2xl border shadow-sm overflow-hidden p-0">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-3 bg-muted/40 border-b">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">종목</div>
-                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">수익</div>
-                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">빚</div>
-                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">성장</div>
-                <div className="text-[11px] sm:text-xs font-semibold text-muted-foreground text-center">몸값</div>
+              <div className="grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2.5 bg-muted/40 border-b">
+                <div className="text-sm font-bold text-foreground">종목</div>
+                <div className="text-xs sm:text-sm font-bold text-foreground text-center">수익</div>
+                <div className="text-xs sm:text-sm font-bold text-foreground text-center">빚</div>
+                <div className="text-xs sm:text-sm font-bold text-foreground text-center">성장</div>
+                <div className="text-xs sm:text-sm font-bold text-foreground text-center">몸값</div>
                 <div />
               </div>
 
