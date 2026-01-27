@@ -160,9 +160,17 @@ export async function GET(
     if (cashflowHistory.length >= 1) {
       const latest = cashflowHistory[0];
       ocfFromHistory = latest?.totalCashFromOperatingActivities || operatingCashflow;
-      // FCF = OCF - CapEx
+      // v9.24: FCF = OCF - CapEx (capex가 0이면 financialData 사용)
       const capex = latest?.capitalExpenditures || 0;
-      fcfFromHistory = ocfFromHistory + capex; // capex는 보통 음수
+      if (capex !== 0) {
+        fcfFromHistory = ocfFromHistory + capex; // capex는 보통 음수
+      } else if (freeCashflow !== 0) {
+        // capex 데이터가 없으면 financialData.freeCashflow 사용
+        fcfFromHistory = freeCashflow;
+      } else {
+        // 둘 다 없으면 null로 표시 (계산 불가)
+        fcfFromHistory = null as any;
+      }
     }
     if (cashflowHistory.length >= 2) {
       const prev = cashflowHistory[1];

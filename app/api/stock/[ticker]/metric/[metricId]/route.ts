@@ -170,37 +170,88 @@ export async function GET(
     const pbr = keyStats?.priceToBook || 0;
 
     let ocfFromHistory = financialData?.operatingCashflow || 0;
-    let fcfFromHistory = financialData?.freeCashflow || 0;
+    let fcfFromHistory: number | null = financialData?.freeCashflow || 0;
     if (cashflowHistory.length >= 1) {
       const latest = cashflowHistory[0];
       ocfFromHistory = latest?.totalCashFromOperatingActivities || ocfFromHistory;
+      // v9.24: FCF = OCF - CapEx (capex가 0이면 financialData 사용)
       const capex = latest?.capitalExpenditures || 0;
-      fcfFromHistory = ocfFromHistory + capex;
+      if (capex !== 0) {
+        fcfFromHistory = ocfFromHistory + capex; // capex는 보통 음수
+      } else if (financialData?.freeCashflow) {
+        fcfFromHistory = financialData.freeCashflow;
+      } else {
+        fcfFromHistory = null; // 계산 불가
+      }
     }
 
     const isNegativeOCF = ocfFromHistory < 0;
     const isNegativePER = per < 0;
     const isLossCompany = netIncomeCurrentYear < 0;
+    
+    // v9.24: 턴어라운드 감지 (분기 데이터 기반)
+    const latestQuarterNetIncome = quarterlyTrend.length > 0 ? quarterlyTrend[quarterlyTrend.length - 1].netIncome : null;
+    const prevQuarterNetIncome = quarterlyTrend.length > 1 ? quarterlyTrend[quarterlyTrend.length - 2].netIncome : null;
+    const isLatestQuarterProfit = latestQuarterNetIncome !== null && latestQuarterNetIncome > 0;
+    const isTurnaroundInProgress = isLossCompany && isLatestQuarterProfit; // 연간 적자 + 최신 분기 흑자
 
     let metricData: any;
 
     switch (metricId) {
       case "earning":
+        // v9.24: 턴어라운드 반영
+        const getEarningStatus = () => {
+          if (isTurnaroundInProgress) return "흑자 전환 중 🎉";
+          if (isNegativeOCF) return "현금흐름 주의";
+          if (roe > 0.15) return "우수";
+          if (roe > 0.05) return "보통";
+          return "주의";
+        };
+        
+        const getEarningStatusColor = () => {
+          if (isTurnaroundInProgress) return "yellow"; // 지켜봐야 함
+          if (isNegativeOCF) return "red";
+          return getStatus(roe, { good: 0.15, bad: 0.05 }, true);
+        };
+        
+        const getEarningSummary = () => {
+          if (isTurnaroundInProgress) {
+            return "연간은 적자지만, 최신 분기 흑자 전환! 🎉";
+          }
+          if (isNegativeOCF) return "현금이 빠져나가고 있어요";
+          if (roe > 0.15) return "돈을 잘 벌고 있어요";
+          if (roe > 0.05) return "보통 수준으로 벌고 있어요";
+          return "수익성이 낮아요";
+        };
+        
         metricData = {
           title: "돈 버는 능력", emoji: "💰",
-          status: roe > 0.15 ? "우수" : roe > 0.05 ? "보통" : isNegativeOCF ? "현금흐름 주의" : "주의",
-          statusColor: isNegativeOCF ? "red" : getStatus(roe, { good: 0.15, bad: 0.05 }, true),
-          summary: isNegativeOCF ? "현금이 빠져나가고 있어요" : roe > 0.15 ? "돈을 잘 벌고 있어요" : roe > 0.05 ? "보통 수준으로 벌고 있어요" : "수익성이 낮아요",
-          dataYear: `${latestFiscalYear}년 연간 기준`,
+          status: getEarningStatus(),
+          statusColor: getEarningStatusColor(),
+          summary: getEarningSummary(),
+          dataYear: quarterlyTrend.length > 0 
+            ? `${quarterlyTrend[quarterlyTrend.length - 1]?.quarter} 기준`
+            : `${latestFiscalYear}년 연간 기준`,
           metrics: [
             { name: "ROE (자기자본이익률)", description: "💡 내 돈(자본)으로 얼마나 벌었나?", value: formatPercentNoSign(roe), status: getStatus(roe, { good: 0.15, bad: 0.05 }, true), benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: `${roe > 0.15 ? "우수 (15%↑)" : roe > 0.05 ? "보통 (5~15%)" : roe > 0 ? "낮음 (5%↓)" : "적자"}` },
             { name: "영업이익률", description: "💡 본업에서 매출 100원당 얼마가 남나?", value: formatPercentNoSign(operatingMargin), status: getStatus(operatingMargin, { good: 0.1, bad: 0.05 }, true), benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: `${operatingMargin > 0.15 ? "우수 (15%↑)" : operatingMargin > 0.1 ? "양호 (10%↑)" : operatingMargin > 0.05 ? "보통" : "낮음"}` },
             { name: "순이익률", description: "💡 모든 비용 제하고 최종적으로 얼마가 남나?", value: formatPercentNoSign(profitMargin), status: getStatus(profitMargin, { good: 0.1, bad: 0.03 }, true), benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: `${profitMargin > 0.1 ? "우수 (10%↑)" : profitMargin > 0.05 ? "양호 (5%↑)" : profitMargin > 0 ? "보통" : "적자"}` },
             { name: "영업현금흐름 (OCF)", description: "💡 영업활동으로 실제 들어온 현금", value: formatCurrency(ocfFromHistory), status: ocfFromHistory > 0 ? "green" : "red", benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: ocfFromHistory > 0 ? "✅ 현금 유입 중" : "⚠️ 현금 유출 중" },
-            { name: "잉여현금흐름 (FCF)", description: "💡 투자 후 남는 현금", value: formatCurrency(fcfFromHistory), status: fcfFromHistory > 0 ? "green" : "yellow", benchmark: `📅 ${latestFiscalYear}년 연간`, interpretation: fcfFromHistory > 0 ? "✅ 투자 후 현금 남음" : "투자에 현금 사용 중" },
+            { 
+              name: "잉여현금흐름 (FCF)", 
+              description: "💡 투자 후 남는 현금", 
+              value: fcfFromHistory !== null ? formatCurrency(fcfFromHistory) : "데이터 없음", 
+              status: fcfFromHistory === null ? "yellow" : (fcfFromHistory > 0 ? "green" : "yellow"), 
+              benchmark: `📅 ${latestFiscalYear}년 연간`, 
+              interpretation: fcfFromHistory === null ? "CapEx 데이터 부족" : (fcfFromHistory > 0 ? "✅ 투자 후 현금 남음" : "투자에 현금 사용 중")
+            },
           ],
-          whyImportant: ["ROE가 높으면 주주 돈으로 효율적으로 돈을 번다는 의미예요", "💡 순이익이 좋아도 현금흐름(OCF)이 마이너스면 위험 신호예요"],
-          caution: isNegativeOCF ? ["⚠️ 장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요"] : undefined,
+          whyImportant: isTurnaroundInProgress 
+            ? ["최신 분기 흑자 전환에 성공했어요! 지속 여부를 지켜봐야 해요", "장부상 이익보다 현금흐름(OCF)이 플러스인 게 중요해요"]
+            : ["ROE가 높으면 주주 돈으로 효율적으로 돈을 번다는 의미예요", "💡 순이익이 좋아도 현금흐름(OCF)이 마이너스면 위험 신호예요"],
+          caution: isTurnaroundInProgress 
+            ? ["🎉 최신 분기 흑자 전환!", "이 추세가 지속될지 다음 분기 실적을 확인하세요"]
+            : (isNegativeOCF ? ["⚠️ 장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요"] : undefined),
         };
         break;
 
@@ -535,6 +586,8 @@ export async function GET(
           return "매우 높음";
         };
         const getPERSummary = () => {
+          // v9.24: 턴어라운드 반영
+          if (isTurnaroundInProgress) return "흑자 전환 성공! PER 산정이 가능해졌어요";
           if (isNegativePER) return "적자 기업이라 PER을 산정하기 어려워요";
           if (per < 15) return "PER이 낮은 편이에요";
           if (per < 40) return "PER이 보통 수준이에요";
@@ -542,10 +595,21 @@ export async function GET(
           return "PER이 매우 높아요";
         };
         
+        // v9.24: 턴어라운드 시 decisionPoint 개선
+        const getDecisionPoint = () => {
+          if (isTurnaroundInProgress) {
+            return ["🎉 최신 분기 흑자 전환 성공! 실적 개선세가 지속될지 지켜보세요", "자산 가치(PBR)와 현금흐름도 함께 확인하세요"];
+          }
+          if (isNegativePER || isLossCompany) {
+            return ["흑자 전환 가능성이 있다면 → 장기 투자 고려", "적자가 지속된다면 → 리스크가 커요"];
+          }
+          return ["성장이 계속되면 → 지금 가격도 정당화됨", "성장이 꺾이면 → 비싸게 산 게 됨"];
+        };
+        
         metricData = {
           title: "현재 몸값", emoji: "💎",
-          status: getPERStatusText(),
-          statusColor: isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false),
+          status: isTurnaroundInProgress ? "흑자 전환 🎉" : getPERStatusText(),
+          statusColor: isTurnaroundInProgress ? "green" : (isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false)),
           summary: getPERSummary(),
           dataYear: "현재 주가 기준",
           metrics: [
@@ -553,8 +617,10 @@ export async function GET(
             { name: "PEG (성장 대비 가격)", description: "💡 PER ÷ 이익성장률", value: displayPEG && displayPEG > 0 ? formatRatio(displayPEG) : "데이터 부족", status: displayPEG && displayPEG > 0 ? getStatus(displayPEG, { good: 1, bad: 2 }, false) : "yellow", benchmark: "📅 예상 성장률 기준", interpretation: displayPEG && displayPEG > 0 ? `${displayPEG < 0.5 ? "매우 낮음 (0.5↓)" : displayPEG < 1 ? "낮은 편 (1↓)" : displayPEG < 2 ? "보통 (1~2)" : "높은 편 (2↑)"}` : "데이터 부족" },
             { name: "PBR (주가순자산비율)", description: "💡 주가 ÷ 1주당 순자산", value: pbr > 0 ? formatRatio(pbr) : "데이터 없음", status: pbr > 0 ? getStatus(pbr, { good: 3, bad: 10 }, false) : "yellow", benchmark: `📅 ${latestFiscalYear}년 기준`, interpretation: pbr > 0 ? `${pbr < 1 ? "낮은 편 (1↓)" : pbr < 3 ? "보통 (1~3)" : pbr < 5 ? "다소 높음 (3~5)" : "높은 편 (5↑)"}` : "데이터 부족" },
           ],
-          whyImportant: isNegativePER || isLossCompany ? ["적자 기업은 PER 대신 PSR이나 PBR로 평가해요", "흑자 전환 시점과 성장 가능성이 더 중요해요"] : ["업종마다 적정 PER이 달라요 (기술주 vs 금융주)", "PEG가 1 이하면 성장률 대비 매력적일 수 있어요"],
-          decisionPoint: isNegativePER || isLossCompany ? ["흑자 전환 가능성이 있다면 → 장기 투자 고려", "적자가 지속된다면 → 리스크가 커요"] : ["성장이 계속되면 → 지금 가격도 정당화됨", "성장이 꺾이면 → 비싸게 산 게 됨"],
+          whyImportant: isTurnaroundInProgress 
+            ? ["흑자 전환에 성공해 PER 지표를 다시 볼 수 있게 됐어요", "실적 개선 속도와 지속 가능성이 핵심이에요"]
+            : (isNegativePER || isLossCompany ? ["적자 기업은 PER 대신 PSR이나 PBR로 평가해요", "흑자 전환 시점과 성장 가능성이 더 중요해요"] : ["업종마다 적정 PER이 달라요 (기술주 vs 금융주)", "PEG가 1 이하면 성장률 대비 매력적일 수 있어요"]),
+          decisionPoint: getDecisionPoint(),
         };
         break;
 
