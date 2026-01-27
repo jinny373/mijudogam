@@ -664,7 +664,7 @@ export default function StockDetailPage() {
                 return (
                   <div
                     key={stock.ticker}
-                    className={`grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 py-2.5 hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group ${index > 0 ? 'border-t border-border/60' : ''}`}
+                    className={`grid grid-cols-[1fr_repeat(4,40px)_28px] sm:grid-cols-[1fr_repeat(4,52px)_36px] items-center px-4 min-h-[60px] hover:bg-primary/[0.03] cursor-pointer transition-all duration-200 group ${index > 0 ? 'border-t border-border/60' : ''}`}
                     onClick={() => {
                       logWatchlistEvent("related_stock_click", { 
                         from: stockData.ticker, 
@@ -674,8 +674,8 @@ export default function StockDetailPage() {
                     }}
                   >
                       {/* Stock Info */}
-                      <div className="min-w-0 pr-2">
-                        <span className="font-bold text-foreground truncate block text-base sm:text-lg">{stock.nameKo || stock.name}</span>
+                      <div className="min-w-0 pr-2 py-2">
+                        <span className="font-bold text-foreground truncate block text-base sm:text-lg leading-tight">{stock.nameKo || stock.name}</span>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-xs font-semibold text-purple-600">{stock.ticker}</span>
                           <span className="text-[11px] text-muted-foreground truncate">{stock.reason}</span>
@@ -685,30 +685,30 @@ export default function StockDetailPage() {
                       {/* Metrics */}
                       {stock.signals ? (
                         <>
-                          <div className="flex justify-center">
+                          <div className="flex justify-center items-center h-full">
                             <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.earning)}`} />
                           </div>
-                          <div className="flex justify-center">
+                          <div className="flex justify-center items-center h-full">
                             <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.debt)}`} />
                           </div>
-                          <div className="flex justify-center">
+                          <div className="flex justify-center items-center h-full">
                             <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.growth)}`} />
                           </div>
-                          <div className="flex justify-center">
+                          <div className="flex justify-center items-center h-full">
                             <div className={`w-2.5 h-2.5 rounded-full shadow-md ${getRatingClass(stock.signals.valuation)}`} />
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
-                          <div className="flex justify-center"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
+                          <div className="flex justify-center items-center h-full"><div className="w-2.5 h-2.5 rounded-full bg-gray-300" /></div>
                         </>
                       )}
 
                       {/* Arrow */}
-                      <div className="flex justify-center">
+                      <div className="flex justify-center items-center h-full">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center group-hover:bg-purple-100 transition-colors">
                           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
                         </div>
