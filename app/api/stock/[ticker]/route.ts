@@ -4,7 +4,7 @@ import YahooFinance from "yahoo-finance2";
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ═══════════════════════════════════════════════════════════════
-// v9.32: 신호등 계산 공통 함수 (상세 페이지 & 추천 신호등 모두 사용)
+// v9.33: 신호등 계산 공통 함수 - 상세 페이지와 100% 동일한 로직
 // ═══════════════════════════════════════════════════════════════
 interface SignalResult {
   earning: "good" | "normal" | "bad";
@@ -30,32 +30,53 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
     const fd = data.financialData;
     const ks = data.defaultKeyStatistics;
     const bsQuarterly = data.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
-    const isQuarterly = data.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const incomeQuarterly = data.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const incomeAnnual = data.incomeStatementHistory?.incomeStatementHistory || [];
     const cfHistory = data.cashflowStatementHistory?.cashflowStatements || [];
     
     // ═══════════════════════════════════════════════════════════════
-    // EARNING: ROE + OCF 체크 (상세 페이지와 동일)
-    // getStatus(roe, { good: 0.15, bad: 0.05 }, true)
-    // OCF 마이너스면 red
+    // 공통 변수 계산 (상세 페이지와 동일)
     // ═══════════════════════════════════════════════════════════════
     const roe = fd?.returnOnEquity || 0;
     const ocf = cfHistory.length > 0 ? (cfHistory[0]?.totalCashFromOperatingActivities || 0) : 0;
     const isNegativeOCF = ocf < 0;
     
+    // Pre-revenue 체크
+    const totalRevenue = incomeAnnual.length > 0 ? (incomeAnnual[0]?.totalRevenue || 0) : 0;
+    const isPreRevenueCompany = totalRevenue === 0 || totalRevenue < 1000000;
+    
+    // 턴어라운드 체크 (연간 적자 + 분기 흑자)
+    const netIncomeAnnual = incomeAnnual.length > 0 ? (incomeAnnual[0]?.netIncome || 0) : 0;
+    const netIncomeQuarterly = incomeQuarterly.length > 0 ? (incomeQuarterly[0]?.netIncome || 0) : 0;
+    const isAnnualLoss = netIncomeAnnual < 0;
+    const isQuarterlyProfit = netIncomeQuarterly > 0;
+    const isTurnaroundInProgress = isAnnualLoss && isQuarterlyProfit;
+    
+    // ═══════════════════════════════════════════════════════════════
+    // EARNING: 상세 페이지와 100% 동일
+    // isPreRevenueCompany ? "yellow" 
+    // : isTurnaroundInProgress ? "yellow"
+    // : isNegativeOCF ? "red" 
+    // : getStatus(roe, { good: 0.15, bad: 0.05 }, true)
+    // ═══════════════════════════════════════════════════════════════
     let earningSignal: "good" | "normal" | "bad";
-    if (isNegativeOCF) {
-      earningSignal = "bad";
-    } else if (roe > 0.15) {
-      earningSignal = "good";
+    if (isPreRevenueCompany) {
+      earningSignal = "normal"; // yellow
+    } else if (isTurnaroundInProgress) {
+      earningSignal = "normal"; // yellow
+    } else if (isNegativeOCF) {
+      earningSignal = "bad"; // red
+    } else if (roe >= 0.15) {
+      earningSignal = "good"; // green
     } else if (roe > 0.05) {
-      earningSignal = "normal";
+      earningSignal = "normal"; // yellow
     } else {
-      earningSignal = "bad";
+      earningSignal = "bad"; // red
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // DEBT: 부채비율 (상세 페이지와 동일)
-    // getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false)
+    // DEBT: 상세 페이지와 100% 동일
+    // getStatus(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false)
     // ═══════════════════════════════════════════════════════════════
     let debtRatio = 0;
     if (bsQuarterly.length > 0) {
@@ -70,52 +91,67 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
     }
     
     let debtSignal: "good" | "normal" | "bad";
-    if (debtRatio < 0.5) {
-      debtSignal = "good";
-    } else if (debtRatio < 1.5) {
-      debtSignal = "normal";
+    // getStatus with higherIsBetter=false: good <= threshold, bad >= threshold
+    if (debtRatio <= 0.5) {
+      debtSignal = "good"; // green
+    } else if (debtRatio >= 1.5) {
+      debtSignal = "bad"; // red
     } else {
-      debtSignal = "bad";
+      debtSignal = "normal"; // yellow
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // GROWTH: 분기 매출 성장률 (상세 페이지와 동일)
-    // getStatus(revenueGrowth, { good: 0.15, bad: 0 }, true)
+    // GROWTH: 상세 페이지와 100% 동일
+    // isPreRevenueCompany ? "yellow"
+    // : hasRevenueGrowthData ? getStatus(revenueGrowthValue, { good: 0.15, bad: 0 }, true)
+    // : canUseQuarterlyGrowth ? (분기 성장률 기준)
+    // : "yellow"
     // ═══════════════════════════════════════════════════════════════
-    let qoqGrowth = 0;
-    if (isQuarterly.length >= 2) {
-      const latestRev = isQuarterly[0]?.totalRevenue || 0;
-      const prevRev = isQuarterly[1]?.totalRevenue || 0;
-      qoqGrowth = prevRev > 0 ? (latestRev - prevRev) / prevRev : 0;
-    } else {
-      qoqGrowth = fd?.revenueGrowth || 0;
-    }
-    
     let growthSignal: "good" | "normal" | "bad";
-    if (qoqGrowth > 0.15) {
-      growthSignal = "good";
-    } else if (qoqGrowth > 0) {
-      growthSignal = "normal";
+    
+    if (isPreRevenueCompany) {
+      growthSignal = "normal"; // yellow
     } else {
-      growthSignal = "bad";
+      // 연간 성장률 계산
+      const revenueGrowth = fd?.revenueGrowth || 0;
+      const hasRevenueGrowthData = revenueGrowth !== 0;
+      
+      // 분기별 성장률 계산 (fallback)
+      let qoqGrowth = 0;
+      if (incomeQuarterly.length >= 2) {
+        const latestRev = incomeQuarterly[0]?.totalRevenue || 0;
+        const prevRev = incomeQuarterly[1]?.totalRevenue || 0;
+        qoqGrowth = prevRev > 0 ? (latestRev - prevRev) / prevRev : 0;
+      }
+      
+      // 연간 데이터 우선, 없으면 분기별
+      const growthRate = hasRevenueGrowthData ? revenueGrowth : qoqGrowth;
+      
+      if (growthRate >= 0.15) {
+        growthSignal = "good"; // green
+      } else if (growthRate > 0) {
+        growthSignal = "normal"; // yellow
+      } else {
+        growthSignal = "bad"; // red
+      }
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // VALUATION: PER (상세 페이지와 동일)
-    // getStatus(per, { good: 40, bad: 60 }, false)
-    // 적자(PER <= 0)는 yellow
+    // VALUATION: 상세 페이지와 100% 동일
+    // isNegativePER ? "yellow" : getStatus(per, { good: 40, bad: 60 }, false)
     // ═══════════════════════════════════════════════════════════════
     const per = ks?.trailingPE || ks?.forwardPE || 0;
+    const isNegativePER = per < 0;
     
     let valuationSignal: "good" | "normal" | "bad";
-    if (per <= 0) {
-      valuationSignal = "normal"; // 적자 = yellow
-    } else if (per < 40) {
-      valuationSignal = "good";
-    } else if (per < 60) {
-      valuationSignal = "normal";
+    if (isNegativePER || per === 0) {
+      valuationSignal = "normal"; // yellow (적자 기업)
+    } else if (per <= 40) {
+      valuationSignal = "good"; // green
+    } else if (per >= 60) {
+      valuationSignal = "bad"; // red
     } else {
-      valuationSignal = "bad";
+      valuationSignal = "normal"; // yellow
     }
     
     return {
