@@ -1447,20 +1447,141 @@ export async function GET(
           { ticker: "MRVL", name: "Marvell", nameKo: "마벨", reason: "데이터센터 칩" },
           { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "연결 솔루션" },
         ],
+        // ═══════════════════════════════════════════════════════════════
+        // v9.25: 데이터 기반 + 테마 기반 하이브리드 매핑 추가
+        // 앞 4개: 테마/섹터 기반, 뒤 4개: SQL 분석 "함께 조회" 기반
+        // ═══════════════════════════════════════════════════════════════
+        
+        // 비트코인 채굴
+        "IREN": [
+          { ticker: "CIFR", name: "Cipher Mining", nameKo: "사이퍼", reason: "비트코인 채굴" },
+          { ticker: "BITF", name: "Bitfarms", nameKo: "비트팜스", reason: "비트코인 채굴" },
+          { ticker: "CLSK", name: "CleanSpark", nameKo: "클린스파크", reason: "친환경 채굴" },
+          { ticker: "MARA", name: "Marathon Digital", nameKo: "마라톤", reason: "비트코인 채굴 1위" },
+          { ticker: "AVGO", name: "Broadcom", nameKo: "브로드컴", reason: "함께 조회 많음" },
+          { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "함께 조회 많음" },
+          { ticker: "RDW", name: "Redwire", nameKo: "레드와이어", reason: "함께 조회 많음" },
+          { ticker: "IONQ", name: "IonQ", nameKo: "아이온큐", reason: "함께 조회 많음" },
+        ],
+        "CLSK": [
+          { ticker: "IREN", name: "Iris Energy", nameKo: "아이렌", reason: "비트코인 채굴" },
+          { ticker: "MARA", name: "Marathon Digital", nameKo: "마라톤", reason: "비트코인 채굴 1위" },
+          { ticker: "RIOT", name: "Riot Platforms", nameKo: "라이엇", reason: "비트코인 채굴" },
+          { ticker: "CIFR", name: "Cipher Mining", nameKo: "사이퍼", reason: "비트코인 채굴" },
+          { ticker: "BITF", name: "Bitfarms", nameKo: "비트팜스", reason: "비트코인 채굴" },
+          { ticker: "COIN", name: "Coinbase", nameKo: "코인베이스", reason: "크립토 거래소" },
+          { ticker: "MSTR", name: "MicroStrategy", nameKo: "마이크로스트래티지", reason: "비트코인 홀더" },
+          { ticker: "HUT", name: "Hut 8", nameKo: "허트에이트", reason: "비트코인 채굴" },
+        ],
+        "NBIS": [
+          { ticker: "IREN", name: "Iris Energy", nameKo: "아이렌", reason: "비트코인 채굴" },
+          { ticker: "BITF", name: "Bitfarms", nameKo: "비트팜스", reason: "비트코인 채굴" },
+          { ticker: "CIFR", name: "Cipher Mining", nameKo: "사이퍼", reason: "비트코인 채굴" },
+          { ticker: "CLSK", name: "CleanSpark", nameKo: "클린스파크", reason: "비트코인 채굴" },
+          { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "함께 조회 많음" },
+          { ticker: "BE", name: "Bloom Energy", nameKo: "블룸에너지", reason: "함께 조회 많음" },
+          { ticker: "IONQ", name: "IonQ", nameKo: "아이온큐", reason: "함께 조회 많음" },
+          { ticker: "ONDS", name: "Ondas Holdings", nameKo: "온다스", reason: "함께 조회 많음" },
+        ],
+        // 우주항공
+        "RKLB": [
+          { ticker: "ASTS", name: "AST SpaceMobile", nameKo: "AST스페이스모바일", reason: "우주 통신 위성" },
+          { ticker: "LUNR", name: "Intuitive Machines", nameKo: "인튜이티브머신스", reason: "달 착륙선" },
+          { ticker: "RDW", name: "Redwire", nameKo: "레드와이어", reason: "우주 인프라" },
+          { ticker: "PL", name: "Planet Labs", nameKo: "플래닛랩스", reason: "위성 이미지" },
+          { ticker: "SMR", name: "NuScale", nameKo: "뉴스케일", reason: "함께 조회 많음" },
+          { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "함께 조회 많음" },
+          { ticker: "AVGO", name: "Broadcom", nameKo: "브로드컴", reason: "함께 조회 많음" },
+          { ticker: "PLTR", name: "Palantir", nameKo: "팔란티어", reason: "함께 조회 많음" },
+        ],
+        "ASTS": [
+          { ticker: "RKLB", name: "Rocket Lab", nameKo: "로켓랩", reason: "우주 발사체" },
+          { ticker: "LUNR", name: "Intuitive Machines", nameKo: "인튜이티브머신스", reason: "우주 탐사" },
+          { ticker: "RDW", name: "Redwire", nameKo: "레드와이어", reason: "우주 인프라" },
+          { ticker: "PL", name: "Planet Labs", nameKo: "플래닛랩스", reason: "위성 서비스" },
+          { ticker: "SMR", name: "NuScale", nameKo: "뉴스케일", reason: "함께 조회 많음" },
+          { ticker: "TEM", name: "Tempus AI", nameKo: "템퍼스", reason: "함께 조회 많음" },
+          { ticker: "AVGO", name: "Broadcom", nameKo: "브로드컴", reason: "함께 조회 많음" },
+          { ticker: "BKSY", name: "BlackSky", nameKo: "블랙스카이", reason: "위성 이미지 경쟁" },
+        ],
+        "PL": [
+          { ticker: "RKLB", name: "Rocket Lab", nameKo: "로켓랩", reason: "우주 발사체" },
+          { ticker: "ASTS", name: "AST SpaceMobile", nameKo: "AST스페이스모바일", reason: "위성 통신" },
+          { ticker: "RDW", name: "Redwire", nameKo: "레드와이어", reason: "우주 인프라" },
+          { ticker: "LUNR", name: "Intuitive Machines", nameKo: "인튜이티브머신스", reason: "달 탐사" },
+          { ticker: "BKSY", name: "BlackSky", nameKo: "블랙스카이", reason: "위성 이미지 경쟁" },
+          { ticker: "SPIR", name: "Spire Global", nameKo: "스파이어", reason: "위성 데이터" },
+          { ticker: "IRDM", name: "Iridium", nameKo: "이리듐", reason: "위성 통신" },
+          { ticker: "PLTR", name: "Palantir", nameKo: "팔란티어", reason: "함께 조회 많음" },
+        ],
+        // 스토리지/메모리
+        "SNDK": [
+          { ticker: "MU", name: "Micron", nameKo: "마이크론", reason: "메모리 반도체" },
+          { ticker: "WDC", name: "Western Digital", nameKo: "웨스턴디지털", reason: "스토리지 경쟁사" },
+          { ticker: "STX", name: "Seagate", nameKo: "씨게이트", reason: "HDD 경쟁사" },
+          { ticker: "PSTG", name: "Pure Storage", nameKo: "퓨어스토리지", reason: "플래시 스토리지" },
+          { ticker: "RKLB", name: "Rocket Lab", nameKo: "로켓랩", reason: "함께 조회 많음" },
+          { ticker: "SMR", name: "NuScale", nameKo: "뉴스케일", reason: "함께 조회 많음" },
+          { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "함께 조회 많음" },
+          { ticker: "BE", name: "Bloom Energy", nameKo: "블룸에너지", reason: "함께 조회 많음" },
+        ],
+        "WDC": [
+          { ticker: "MU", name: "Micron", nameKo: "마이크론", reason: "메모리 반도체" },
+          { ticker: "STX", name: "Seagate", nameKo: "씨게이트", reason: "HDD 경쟁사" },
+          { ticker: "SNDK", name: "SanDisk", nameKo: "샌디스크", reason: "낸드플래시" },
+          { ticker: "PSTG", name: "Pure Storage", nameKo: "퓨어스토리지", reason: "플래시 스토리지" },
+          { ticker: "INTC", name: "Intel", nameKo: "인텔", reason: "함께 조회 많음" },
+          { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "함께 조회 많음" },
+          { ticker: "AMAT", name: "Applied Materials", nameKo: "어플라이드", reason: "반도체 장비" },
+          { ticker: "LRCX", name: "Lam Research", nameKo: "램리서치", reason: "반도체 장비" },
+        ],
+        // 전력 인프라
+        "ETN": [
+          { ticker: "VRT", name: "Vertiv", nameKo: "버티브", reason: "데이터센터 전력" },
+          { ticker: "VST", name: "Vistra", nameKo: "비스트라", reason: "전력 유틸리티" },
+          { ticker: "CEG", name: "Constellation", nameKo: "컨스털레이션", reason: "전력 회사" },
+          { ticker: "GEV", name: "GE Vernova", nameKo: "GE버노바", reason: "전력 장비" },
+          { ticker: "PWR", name: "Quanta Services", nameKo: "퀀타서비스", reason: "전력 인프라" },
+          { ticker: "EMR", name: "Emerson", nameKo: "에머슨", reason: "산업 자동화" },
+          { ticker: "ROK", name: "Rockwell", nameKo: "록웰", reason: "산업 자동화" },
+          { ticker: "SMCI", name: "Super Micro", nameKo: "슈퍼마이크로", reason: "AI 서버" },
+        ],
+        // 핀테크
+        "HOOD": [
+          { ticker: "COIN", name: "Coinbase", nameKo: "코인베이스", reason: "크립토 거래 경쟁" },
+          { ticker: "SOFI", name: "SoFi", nameKo: "소파이", reason: "핀테크 경쟁사" },
+          { ticker: "SQ", name: "Block", nameKo: "블록(스퀘어)", reason: "핀테크 대장" },
+          { ticker: "PYPL", name: "PayPal", nameKo: "페이팔", reason: "결제 플랫폼" },
+          { ticker: "AFRM", name: "Affirm", nameKo: "어펌", reason: "BNPL 서비스" },
+          { ticker: "NU", name: "Nu Holdings", nameKo: "누뱅크", reason: "디지털 뱅킹" },
+          { ticker: "MSTR", name: "MicroStrategy", nameKo: "마이크로스트래티지", reason: "비트코인 관련" },
+          { ticker: "AVGO", name: "Broadcom", nameKo: "브로드컴", reason: "함께 조회 많음" },
+        ],
+        // 수소/클린에너지
+        "BE": [
+          { ticker: "PLUG", name: "Plug Power", nameKo: "플러그파워", reason: "수소연료전지 대장" },
+          { ticker: "FCEL", name: "FuelCell Energy", nameKo: "퓨얼셀", reason: "연료전지" },
+          { ticker: "BLDP", name: "Ballard Power", nameKo: "발라드파워", reason: "연료전지" },
+          { ticker: "ENPH", name: "Enphase", nameKo: "엔페이즈", reason: "클린에너지" },
+          { ticker: "NBIS", name: "Nebius", nameKo: "네비우스", reason: "함께 조회 많음" },
+          { ticker: "IONQ", name: "IonQ", nameKo: "아이온큐", reason: "함께 조회 많음" },
+          { ticker: "CRDO", name: "Credo", nameKo: "크리도", reason: "함께 조회 많음" },
+          { ticker: "SMR", name: "NuScale", nameKo: "뉴스케일", reason: "클린에너지" },
+        ],
       };
       
       // 1. 특정 종목 연관이 있으면 우선 사용
       if (specificRelations[currentTicker]) {
         return specificRelations[currentTicker]
           .filter(s => s.ticker !== currentTicker)
-          .slice(0, 4);
+          .slice(0, 8); // v9.25: 4개 → 8개 확장
       }
       
       // 2. 같은 섹터 종목 추천
       const sectorList = sectorStocks[currentSector] || sectorStocks["Technology"];
       return sectorList
         .filter(s => s.ticker !== currentTicker)
-        .slice(0, 4);
+        .slice(0, 8); // v9.25: 4개 → 8개 확장
     };
 
     const result = {

@@ -820,7 +820,7 @@ export async function GET(
     
     const relatedStocks = (sectorStocks[currentSector] || sectorStocks["Technology"])
       .filter(s => s.ticker !== symbol)
-      .slice(0, 4);
+      .slice(0, 8); // v9.25: 4개 → 8개 확장
 
     return NextResponse.json({ ticker: symbol, stockName, ...metricData, relatedStocks });
   } catch (error) {
