@@ -240,10 +240,11 @@ export async function GET(
         const hasEarningsGrowthData = earningsGrowth !== null;
         const hasRevenueButNoGrowthData = actualRevenue > 0 && !hasRevenueGrowthData;
         
-        const isCurrentlyLoss = netIncomeCurrentYear < 0;
-        const wasPreviouslyLoss = netIncomePreviousYear < 0;
-        const turnedProfitable = wasPreviouslyLoss && !isCurrentlyLoss;
-        const lossExpanded = wasPreviouslyLoss && isCurrentlyLoss && netIncomeCurrentYear < netIncomePreviousYear;
+        // === 연간 기준 (기존) ===
+        const isCurrentlyLossAnnual = netIncomeCurrentYear < 0;
+        const wasPreviouslyLossAnnual = netIncomePreviousYear < 0;
+        const turnedProfitableAnnual = wasPreviouslyLossAnnual && !isCurrentlyLossAnnual;
+        const lossExpandedAnnual = wasPreviouslyLossAnnual && isCurrentlyLossAnnual && netIncomeCurrentYear < netIncomePreviousYear;
         
         // v9.22: 분기별 순이익 추이 계산
         const quarterlyNetIncomeTrend = quarterlyTrend.map((q: any, i: number) => {
@@ -266,6 +267,41 @@ export async function GET(
             growth,
           };
         });
+        
+        // === v9.23: 분기 기준 손익 상태 (caution용) ===
+        const latestQuarterNetIncome = quarterlyTrend.length > 0 ? quarterlyTrend[quarterlyTrend.length - 1].netIncome : null;
+        const prevQuarterNetIncome = quarterlyTrend.length > 1 ? quarterlyTrend[quarterlyTrend.length - 2].netIncome : null;
+        const prev2QuarterNetIncome = quarterlyTrend.length > 2 ? quarterlyTrend[quarterlyTrend.length - 3].netIncome : null;
+        
+        // 분기 기준 판단
+        const isCurrentlyLossQuarterly = latestQuarterNetIncome !== null && latestQuarterNetIncome < 0;
+        const wasPreviouslyLossQuarterly = prevQuarterNetIncome !== null && prevQuarterNetIncome < 0;
+        
+        // 분기 기준: 흑자 전환 (이전 분기 적자 → 최신 분기 흑자)
+        const turnedProfitableQuarterly = wasPreviouslyLossQuarterly && !isCurrentlyLossQuarterly;
+        
+        // 분기 기준: 적자 확대 (이전 분기도 적자, 최신 분기도 적자, 적자폭 커짐)
+        const lossExpandedQuarterly = wasPreviouslyLossQuarterly && isCurrentlyLossQuarterly && 
+          latestQuarterNetIncome !== null && prevQuarterNetIncome !== null &&
+          latestQuarterNetIncome < prevQuarterNetIncome;
+        
+        // 분기 기준: 적자 축소 (이전 분기도 적자, 최신 분기도 적자, 적자폭 줄어듦)
+        const lossReducedQuarterly = wasPreviouslyLossQuarterly && isCurrentlyLossQuarterly &&
+          latestQuarterNetIncome !== null && prevQuarterNetIncome !== null &&
+          latestQuarterNetIncome > prevQuarterNetIncome;
+        
+        // 분기 기준: 흑자 → 적자 전환
+        const turnedLossQuarterly = !wasPreviouslyLossQuarterly && prevQuarterNetIncome !== null && isCurrentlyLossQuarterly;
+        
+        // === v9.23: 분기 데이터 우선, 없으면 연간 데이터 사용 ===
+        const hasQuarterlyNetIncomeData = quarterlyTrend.length >= 2;
+        
+        // 최종 판단 변수 (분기 우선)
+        const turnedProfitable = hasQuarterlyNetIncomeData ? turnedProfitableQuarterly : turnedProfitableAnnual;
+        const lossExpanded = hasQuarterlyNetIncomeData ? lossExpandedQuarterly : lossExpandedAnnual;
+        const lossReduced = hasQuarterlyNetIncomeData ? lossReducedQuarterly : false;
+        const turnedLoss = hasQuarterlyNetIncomeData ? turnedLossQuarterly : false;
+        const isCurrentlyLoss = hasQuarterlyNetIncomeData ? isCurrentlyLossQuarterly : isCurrentlyLossAnnual;
         
         // 최신 분기 순이익 성장률
         const latestNetIncomeGrowth = quarterlyNetIncomeTrend.length > 0 
@@ -359,6 +395,7 @@ export async function GET(
           const getNetIncomeInterpretation = () => {
             if (prevNetIncome < 0 && latestNetIncome > 0) return "🎉 흑자 전환 성공!";
             if (prevNetIncome > 0 && latestNetIncome < 0) return "⚠️ 적자 전환";
+            if (latestNetIncome < 0 && prevNetIncome < 0 && latestNetIncome > prevNetIncome) return "📈 적자폭 축소 중";
             if (latestNetIncome < 0) return "적자 지속 중";
             if (latestNetIncome > prevNetIncome * 2) return "🔥 이익 급증!";
             if (latestNetIncome > prevNetIncome) return "📈 이익 증가 중";
@@ -378,16 +415,17 @@ export async function GET(
           // 분기 데이터 없으면 연간으로 폴백
           const getEarningsDisplay = () => {
             if (!hasEarningsGrowthData) return "데이터 없음";
-            if (turnedProfitable) return `흑자 전환! (${formatCurrency(netIncomeCurrentYear)})`;
-            if (lossExpanded) return `적자 확대 (${formatCurrency(netIncomePreviousYear)} → ${formatCurrency(netIncomeCurrentYear)})`;
+            if (turnedProfitableAnnual) return `흑자 전환! (${formatCurrency(netIncomeCurrentYear)})`;
+            if (lossExpandedAnnual) return `적자 확대 (${formatCurrency(netIncomePreviousYear)} → ${formatCurrency(netIncomeCurrentYear)})`;
+            if (isCurrentlyLossAnnual) return formatCurrency(netIncomeCurrentYear);
             return formatPercent(earningsGrowthValue);
           };
           
           const getEarningsInterpretation = () => {
             if (!hasEarningsGrowthData) return "데이터가 부족해요";
-            if (turnedProfitable) return "🎉 흑자 전환 성공!";
-            if (lossExpanded) return `⚠️ 적자 확대`;
-            if (isCurrentlyLoss) return "아직 적자 상태예요";
+            if (turnedProfitableAnnual) return "🎉 흑자 전환 성공!";
+            if (lossExpandedAnnual) return `⚠️ 적자 확대`;
+            if (isCurrentlyLossAnnual) return "아직 적자 상태예요";
             if (earningsGrowthValue > 1) return "이익 2배 이상 급증!";
             if (earningsGrowthValue > 0) return "이익 증가 중";
             return "이익 감소 중";
@@ -395,9 +433,9 @@ export async function GET(
           
           const getEarningsStatus = () => {
             if (!hasEarningsGrowthData) return "yellow";
-            if (turnedProfitable) return "green";
-            if (lossExpanded) return "red";
-            if (isCurrentlyLoss) return "yellow";
+            if (turnedProfitableAnnual) return "green";
+            if (lossExpandedAnnual) return "red";
+            if (isCurrentlyLossAnnual) return "yellow";
             return getStatus(earningsGrowthValue, { good: 0.15, bad: 0 }, true);
           };
           
@@ -432,6 +470,41 @@ export async function GET(
           });
         }
         
+        // === v9.23: caution 로직 개선 (분기 데이터 우선) ===
+        const generateCaution = (): string[] | undefined => {
+          // 1. 데이터 부족
+          if (hasRevenueButNoGrowthData && !hasUsableQuarterlyData) {
+            return ["⚠️ 성장률 데이터가 부족해요", "정확한 정보는 기업 IR 자료를 확인하세요"];
+          }
+          
+          // 2. 흑자 전환 (가장 좋은 케이스)
+          if (turnedProfitable) {
+            return ["🎉 최근 흑자 전환에 성공했어요!", "흑자가 지속될지 다음 분기 실적을 확인하세요"];
+          }
+          
+          // 3. 적자 축소 중 (개선 중)
+          if (lossReduced) {
+            return ["📈 아직 적자지만, 적자폭이 줄고 있어요", "흑자 전환 시점을 지켜봐야 해요"];
+          }
+          
+          // 4. 흑자 → 적자 전환 (나쁜 케이스)
+          if (turnedLoss) {
+            return ["⚠️ 흑자에서 적자로 전환됐어요", "일시적인 비용인지 확인이 필요해요"];
+          }
+          
+          // 5. 적자 확대 (가장 나쁜 케이스)
+          if (lossExpanded) {
+            return ["⚠️ 적자가 확대되고 있어요", "현금 보유량과 흑자 전환 시점을 확인하세요"];
+          }
+          
+          // 6. 적자 지속 (확대도 축소도 아님)
+          if (isCurrentlyLoss && !lossReduced && !lossExpanded) {
+            return ["⚠️ 적자가 지속되고 있어요", "흑자 전환 가능성을 지켜봐야 해요"];
+          }
+          
+          return undefined;
+        };
+        
         metricData = {
           title: "성장 가능성", emoji: "🚀",
           status: getGrowthStatusText(),
@@ -445,13 +518,8 @@ export async function GET(
             : hasRevenueButNoGrowthData && !hasUsableQuarterlyData
               ? ["⚠️ 전년 데이터가 없어 성장률을 정확히 알 수 없어요", "최신 실적 발표(10-K, 10-Q)를 직접 확인하세요"]
               : ["성장이 멈추면 주가도 멈출 수 있어요", "매출보다 이익 성장이 빠르면 효율성이 좋아지는 거예요"],
-          caution: hasRevenueButNoGrowthData && !hasUsableQuarterlyData
-            ? ["⚠️ 성장률 데이터가 부족해요", "정확한 정보는 기업 IR 자료를 확인하세요"]
-            : turnedProfitable 
-              ? ["🎉 최근 흑자 전환에 성공했어요!", "흑자가 지속될지 다음 분기 실적을 확인하세요"]
-              : lossExpanded
-                ? ["⚠️ 적자가 확대되고 있어요", "현금 보유량과 흑자 전환 시점을 확인하세요"]
-                : undefined,
+          // v9.23: 분기 기준 caution
+          caution: generateCaution(),
         };
         break;
 
