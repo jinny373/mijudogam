@@ -199,29 +199,76 @@ export async function GET(
 
     switch (metricId) {
       case "earning":
-        // v9.24: 턴어라운드 반영
+        // v9.25: 동적 summary 로직 개선
+        const isRoeLoss = roe < 0;
+        const isRoeHigh = roe > 0.15;
+        const isRoeMid = roe > 0.05;
+        const isOcfPositive = ocfFromHistory > 0;
+        const isFcfPositive = fcfFromHistory !== null && fcfFromHistory > 0;
+        const isFcfNegative = fcfFromHistory !== null && fcfFromHistory < 0;
+        
         const getEarningStatus = () => {
           if (isTurnaroundInProgress) return "흑자 전환 중 🎉";
+          if (isRoeLoss && isOcfPositive) return "현금흐름 양호";
           if (isNegativeOCF) return "현금흐름 주의";
-          if (roe > 0.15) return "우수";
-          if (roe > 0.05) return "보통";
+          if (isRoeHigh) return "우수";
+          if (isRoeMid) return "보통";
           return "주의";
         };
         
         const getEarningStatusColor = () => {
-          if (isTurnaroundInProgress) return "yellow"; // 지켜봐야 함
+          if (isTurnaroundInProgress) return "yellow";
+          if (isRoeLoss && isOcfPositive) return "yellow"; // 장부 적자 but 현금 OK
           if (isNegativeOCF) return "red";
           return getStatus(roe, { good: 0.15, bad: 0.05 }, true);
         };
         
+        // v9.25: [판단] + [근거] 동적 조합
         const getEarningSummary = () => {
+          // 1순위: 턴어라운드
           if (isTurnaroundInProgress) {
-            return "연간은 적자지만, 최신 분기 흑자 전환! 🎉";
+            return "연간은 적자지만, 최신 분기 흑자 전환에 성공했어요! 지속 여부를 지켜봐야 해요";
           }
-          if (isNegativeOCF) return "현금이 빠져나가고 있어요";
-          if (roe > 0.15) return "돈을 잘 벌고 있어요";
-          if (roe > 0.05) return "보통 수준으로 벌고 있어요";
-          return "수익성이 낮아요";
+          
+          // 2순위: ROE 적자 + OCF 흑자 (샌디스크 케이스)
+          if (isRoeLoss && isOcfPositive) {
+            return "장부상으론 적자지만, 실제 현금은 잘 벌고 있어요. 회계 비용(감가상각 등) 때문일 수 있어요";
+          }
+          
+          // 3순위: OCF 마이너스
+          if (isNegativeOCF) {
+            if (roe > 0) {
+              return "이익은 나지만 실제 현금이 빠져나가고 있어요. 이익의 질을 확인하세요";
+            }
+            return "현금이 빠져나가고 있어요. 영업 활동으로 현금을 벌지 못하고 있어요";
+          }
+          
+          // 4순위: ROE 기준 + 현금흐름 조합
+          if (isRoeHigh) {
+            if (isFcfPositive) {
+              return "돈을 잘 벌고 있어요. 현금 창출력도 좋고 투자 여력도 넉넉해요";
+            }
+            if (isFcfNegative) {
+              return "돈을 잘 벌고 있어요. 현금은 잘 벌지만 미래 투자에 많이 쓰고 있어요";
+            }
+            return "돈을 잘 벌고 있어요. 주주 돈으로 효율적으로 수익을 내고 있어요";
+          }
+          
+          if (isRoeMid) {
+            if (isFcfPositive) {
+              return "보통 수준으로 벌고 있어요. 현금 흐름은 안정적이에요";
+            }
+            if (isFcfNegative) {
+              return "보통 수준으로 벌고 있어요. 성장을 위한 투자가 많은 시기예요";
+            }
+            return "보통 수준으로 벌고 있어요. 수익성 개선 여지가 있는지 살펴보세요";
+          }
+          
+          // ROE 낮음
+          if (isFcfPositive) {
+            return "수익성이 낮아요. 다만 현금 흐름은 플러스라 당장 위험하진 않아요";
+          }
+          return "수익성이 낮아요. 이익 개선이 필요한 상황이에요";
         };
         
         metricData = {
@@ -248,7 +295,9 @@ export async function GET(
           ],
           whyImportant: isTurnaroundInProgress 
             ? ["최신 분기 흑자 전환에 성공했어요! 지속 여부를 지켜봐야 해요", "장부상 이익보다 현금흐름(OCF)이 플러스인 게 중요해요"]
-            : ["ROE가 높으면 주주 돈으로 효율적으로 돈을 번다는 의미예요", "💡 순이익이 좋아도 현금흐름(OCF)이 마이너스면 위험 신호예요"],
+            : (isRoeLoss && isOcfPositive)
+              ? ["장부상 적자는 감가상각·손상차손 같은 회계 비용 때문일 수 있어요", "실제 현금(OCF)이 플러스면 영업은 잘 돌아가고 있다는 신호예요"]
+              : ["ROE가 높으면 주주 돈으로 효율적으로 돈을 번다는 의미예요", "💡 순이익이 좋아도 현금흐름(OCF)이 마이너스면 위험 신호예요"],
           caution: isTurnaroundInProgress 
             ? ["🎉 최신 분기 흑자 전환!", "이 추세가 지속될지 다음 분기 실적을 확인하세요"]
             : (isNegativeOCF ? ["⚠️ 장부상 이익은 있지만, 실제 현금이 빠져나가고 있어요"] : undefined),
@@ -257,11 +306,39 @@ export async function GET(
 
       case "debt":
         // v9.22: financialData의 debtToEquity, currentRatio는 mrq(최근 분기) 기준
+        // v9.25: 동적 summary - [판단] + [근거]
+        const getDebtSummary = () => {
+          // 부채비율 낮음 + 유동비율 높음 = 최상
+          if (debtToEquity < 0.3 && currentRatio > 2) {
+            return "빚 부담이 적어요. 재무가 튼튼하고 단기 자금도 넉넉해요";
+          }
+          // 부채비율 낮음 + 유동비율 보통
+          if (debtToEquity < 0.5 && currentRatio > 1.5) {
+            return "빚 부담이 적어요. 금리 인상에도 버틸 체력이 있어요";
+          }
+          // 부채비율 낮음 + 유동비율 낮음 (주의)
+          if (debtToEquity < 0.5 && currentRatio < 1) {
+            return "빚은 적지만 단기 자금이 부족해요. 유동성을 확인하세요";
+          }
+          // 부채비율 보통
+          if (debtToEquity < 1) {
+            if (currentRatio > 1.5) {
+              return "빚이 적당해요. 무리하지 않는 수준으로 관리하고 있어요";
+            }
+            return "빚이 적당해요. 다만 단기 자금 여유는 넉넉하지 않아요";
+          }
+          // 부채비율 높음
+          if (currentRatio > 1.5) {
+            return "빚이 많은 편이에요. 다만 단기 지급 능력은 괜찮아요";
+          }
+          return "빚이 많은 편이에요. 금리 인상 시 이자 부담이 클 수 있어요";
+        };
+        
         metricData = {
           title: "빚 관리", emoji: "🏦",
           status: debtToEquity < 0.5 ? "우수" : debtToEquity < 1.5 ? "보통" : "주의",
           statusColor: getStatus(debtToEquity, { good: 0.5, bad: 1.5 }, false),
-          summary: debtToEquity < 0.3 ? "자본 대비 빚 부담이 적어요" : debtToEquity < 1 ? "빚이 적당해요" : "빚이 많은 편이에요",
+          summary: getDebtSummary(),
           // v9.22: 최근 분기 기준으로 표시
           dataYear: `${currentQuarterLabel} 기준 (최근 분기)`,
           metrics: [
@@ -378,21 +455,55 @@ export async function GET(
           return "역성장";
         };
         
+        // v9.25: 동적 summary - [판단] + [근거] (매출 + 이익 조합)
         const getGrowthSummary = () => {
-          if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계예요";
-          // v9.22: 분기 데이터 우선
+          if (isPreRevenueCompany) return "아직 매출이 없는 연구개발 단계예요. 기술력과 현금 보유량이 중요해요";
+          
+          // 분기 데이터 있을 때
           if (hasUsableQuarterlyData && latestQoQGrowth !== null) {
-            if (latestQoQGrowth > 0.2) return "최근 분기 빠르게 성장하고 있어요!";
-            if (latestQoQGrowth > 0.1) return "최근 분기 꾸준히 성장하고 있어요";
-            if (latestQoQGrowth > 0) return "최근 분기 성장하고 있어요";
-            return "최근 분기 성장이 둔화됐어요";
+            const latestProfit = quarterlyTrend[quarterlyTrend.length - 1]?.netIncome || 0;
+            const prevProfit = quarterlyTrend[quarterlyTrend.length - 2]?.netIncome || 0;
+            const profitImproving = latestProfit > prevProfit;
+            const profitVolatile = quarterlyTrend.length >= 3 && 
+              Math.abs(latestProfit - prevProfit) > Math.abs(prevProfit) * 0.5;
+            
+            // 고성장 + 이익도 증가
+            if (latestQoQGrowth > 0.2 && profitImproving) {
+              return "빠르게 성장하고 있어요. 매출과 이익 모두 늘고 있어요";
+            }
+            // 고성장 + 이익 감소
+            if (latestQoQGrowth > 0.2 && !profitImproving) {
+              return "빠르게 성장하고 있어요. 다만 수익성은 지켜볼 필요가 있어요";
+            }
+            // 성장중 + 이익 증가
+            if (latestQoQGrowth > 0 && profitImproving) {
+              return "성장하고 있어요. 이익도 개선되고 있어 긍정적이에요";
+            }
+            // 성장중 + 이익 변동
+            if (latestQoQGrowth > 0 && profitVolatile) {
+              return "성장하고 있어요. 다만 이익은 들쭉날쭉해서 지켜볼 필요가 있어요";
+            }
+            // 성장중 + 이익 감소
+            if (latestQoQGrowth > 0) {
+              return "성장하고 있어요. 매출은 늘지만 수익성은 개선이 필요해요";
+            }
+            // 정체
+            if (latestQoQGrowth > -0.1) {
+              return "성장이 둔화됐어요. 새로운 성장 동력이 필요한 시점이에요";
+            }
+            // 역성장
+            return "매출이 줄고 있어요. 시장 환경이나 경쟁력 변화를 확인하세요";
           }
-          if (hasRevenueButNoGrowthData) return `연간 매출 ${formatCurrency(actualRevenue)}이지만, 전년 데이터가 없어 성장률을 알 수 없어요`;
-          if (revenueGrowthValue > 0.5) return "폭발적으로 성장하고 있어요!";
-          if (revenueGrowthValue > 0.3) return "빠르게 성장하고 있어요";
-          if (revenueGrowthValue > 0.1) return "꾸준히 성장하고 있어요";
-          if (revenueGrowthValue > 0) return "느리게 성장하고 있어요";
-          return "성장이 멈췄거나 역성장 중이에요";
+          
+          // 연간 데이터만 있을 때
+          if (hasRevenueButNoGrowthData) {
+            return `연간 매출 ${formatCurrency(actualRevenue)}이지만, 전년 데이터가 없어 성장률을 알 수 없어요`;
+          }
+          if (revenueGrowthValue > 0.5) return "폭발적으로 성장하고 있어요! 시장을 빠르게 확대하고 있어요";
+          if (revenueGrowthValue > 0.3) return "빠르게 성장하고 있어요. 성장 모멘텀이 강해요";
+          if (revenueGrowthValue > 0.1) return "꾸준히 성장하고 있어요. 안정적인 성장세예요";
+          if (revenueGrowthValue > 0) return "느리게 성장하고 있어요. 성장 가속화가 필요해요";
+          return "성장이 멈췄거나 역성장 중이에요. 사업 환경 변화를 확인하세요";
         };
         
         // 매출 성장률 해석 문구
@@ -585,14 +696,56 @@ export async function GET(
           if (per < 60) return "높은 편";
           return "매우 높음";
         };
+        // v9.25: 동적 summary - [판단] + [근거] (PER + PEG + PBR 조합)
         const getPERSummary = () => {
-          // v9.24: 턴어라운드 반영
-          if (isTurnaroundInProgress) return "흑자 전환 성공! PER 산정이 가능해졌어요";
-          if (isNegativePER) return "적자 기업이라 PER을 산정하기 어려워요";
-          if (per < 15) return "PER이 낮은 편이에요";
-          if (per < 40) return "PER이 보통 수준이에요";
-          if (per < 60) return "PER이 높은 편이에요";
-          return "PER이 매우 높아요";
+          // 1순위: 턴어라운드
+          if (isTurnaroundInProgress) {
+            return "흑자 전환 성공! PER 산정이 가능해졌어요. 실적 개선세 지속 여부가 핵심이에요";
+          }
+          
+          // 2순위: 적자 기업
+          if (isNegativePER) {
+            if (pbr > 0 && pbr < 1) {
+              return "적자 기업이라 PER 산정이 어려워요. 다만 자산가치보다 주가가 낮아요";
+            }
+            return "적자 기업이라 PER 산정이 어려워요. 흑자 전환 시점이 중요해요";
+          }
+          
+          // 3순위: PEG 고려한 판단
+          const hasPEG = displayPEG && displayPEG > 0;
+          
+          // PER 낮음
+          if (per < 15) {
+            if (hasPEG && displayPEG < 1) {
+              return "PER이 낮은 편이에요. 성장성 대비 저평가 구간일 수 있어요";
+            }
+            return "PER이 낮은 편이에요. 실적 대비 싸게 거래되고 있어요";
+          }
+          
+          // PER 보통
+          if (per < 40) {
+            if (hasPEG && displayPEG < 1) {
+              return "PER이 적정 수준이에요. 성장성 대비 주가가 싼 편이에요";
+            }
+            if (hasPEG && displayPEG > 2) {
+              return "PER이 적정 수준이에요. 다만 성장성 대비로는 비싼 편이에요";
+            }
+            return "PER이 적정 수준이에요. 성장성 대비 적정하게 평가받고 있어요";
+          }
+          
+          // PER 높음
+          if (per < 60) {
+            if (hasPEG && displayPEG < 1) {
+              return "PER이 높지만 성장성이 뒷받침해요. 높은 기대가 반영된 가격이에요";
+            }
+            return "PER이 높은 편이에요. 높은 성장 기대가 반영된 가격이에요";
+          }
+          
+          // PER 매우 높음
+          if (hasPEG && displayPEG < 1) {
+            return "PER이 매우 높지만 성장성도 강해요. 기대에 못 미치면 조정 위험이 있어요";
+          }
+          return "PER이 매우 높아요. 기대에 못 미치면 주가 조정 위험이 있어요";
         };
         
         // v9.24: 턴어라운드 시 decisionPoint 개선
