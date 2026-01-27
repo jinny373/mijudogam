@@ -1,5 +1,7 @@
 // 관심종목 관리 유틸리티
 
+import { trackEvent } from './analytics'
+
 const WATCHLIST_KEY = "mijudogam_watchlist"
 
 export interface WatchlistItem {
@@ -84,8 +86,10 @@ export function removeFromWatchlist(ticker: string): void {
 
 // 관심종목 이벤트 로깅 (분석용)
 export function logWatchlistEvent(event: string, data: Record<string, any>): void {
-  // GA4 등 분석 도구 연동 시 사용
   console.log(`[Watchlist] ${event}`, data)
+  
+  // Supabase로 전송
+  trackEvent(event, data)
   
   // Google Analytics 이벤트 (gtag가 있으면)
   if (typeof window !== "undefined" && (window as any).gtag) {
