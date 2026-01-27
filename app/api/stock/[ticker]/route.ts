@@ -1136,8 +1136,8 @@ export async function GET(
       return cons.slice(0, 3);
     };
 
-    // v9.22: 관련 종목 추천 (섹터/업종 기반)
-    const getRelatedStocks = () => {
+    // v9.26: 관련 종목 추천 (섹터/업종 기반) + 신호등
+    const getRelatedStocks = async () => {
       const currentSector = basicInfo.sector;
       const currentIndustry = basicInfo.industry;
       const currentTicker = symbol;
