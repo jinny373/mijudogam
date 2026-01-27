@@ -1570,19 +1570,66 @@ export async function GET(
         ],
       };
       
+      // v9.26: 신호등 조회 (경량 버전)
+      const getSignals = async (ticker: string): Promise<{
+        earning: "good" | "normal" | "bad";
+        debt: "good" | "normal" | "bad";
+        growth: "good" | "normal" | "bad";
+        valuation: "good" | "normal" | "bad";
+      } | null> => {
+        try {
+          const signalData = await yahooFinance.quoteSummary(ticker, {
+            modules: ["financialData", "defaultKeyStatistics"]
+          });
+          
+          const fd = signalData.financialData;
+          const ks = signalData.defaultKeyStatistics;
+          
+          const roe = fd?.returnOnEquity || 0;
+          const debt = fd?.debtToEquity || 0;
+          const revenueGrowth = fd?.revenueGrowth || 0;
+          const per = ks?.forwardPE || ks?.trailingPE || 0;
+          
+          return {
+            earning: roe > 0.15 ? "good" : roe > 0.05 ? "normal" : "bad",
+            debt: debt < 0.5 ? "good" : debt < 1.5 ? "normal" : "bad",
+            growth: revenueGrowth > 0.15 ? "good" : revenueGrowth > 0 ? "normal" : "bad",
+            valuation: per > 0 && per < 25 ? "good" : per > 0 && per < 50 ? "normal" : "bad",
+          };
+        } catch (error) {
+          console.error(`Signal fetch error for ${ticker}:`, error);
+          return null;
+        }
+      };
+      
       // 1. 특정 종목 연관이 있으면 우선 사용
+      let baseStocks: { ticker: string; name: string; nameKo: string; reason: string }[];
+      
       if (specificRelations[currentTicker]) {
-        return specificRelations[currentTicker]
+        baseStocks = specificRelations[currentTicker]
           .filter(s => s.ticker !== currentTicker)
-          .slice(0, 8); // v9.25: 4개 → 8개 확장
+          .slice(0, 8);
+      } else {
+        // 2. 같은 섹터 종목 추천
+        const sectorList = sectorStocks[currentSector] || sectorStocks["Technology"];
+        baseStocks = sectorList
+          .filter(s => s.ticker !== currentTicker)
+          .slice(0, 8);
       }
       
-      // 2. 같은 섹터 종목 추천
-      const sectorList = sectorStocks[currentSector] || sectorStocks["Technology"];
-      return sectorList
-        .filter(s => s.ticker !== currentTicker)
-        .slice(0, 8); // v9.25: 4개 → 8개 확장
+      // v9.26: 병렬로 신호등 조회
+      const stocksWithSignals = await Promise.all(
+        baseStocks.map(async (stock) => {
+          const signals = await getSignals(stock.ticker);
+          return { ...stock, signals };
+        })
+      );
+      
+      return stocksWithSignals;
     };
+
+    // v9.26: getRelatedStocks가 async가 되어서 await 필요
+    const relatedStocksData = await getRelatedStocks();
 
     const result = {
       ...basicInfo,
@@ -1590,8 +1637,8 @@ export async function GET(
       pros: generatePros(),
       cons: generateCons(),
       metrics: [earningPower, debtManagement, growthPotential, valuation],
-      // v9.22: 관련 종목 추천
-      relatedStocks: getRelatedStocks(),
+      // v9.26: 관련 종목 추천 (신호등 포함)
+      relatedStocks: relatedStocksData,
       // 🆕 턴어라운드 정보 추가
       turnaroundInfo: isTurnaroundInProgress ? {
         isInProgress: true,
