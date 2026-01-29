@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, RefreshCw, Info } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -98,6 +99,7 @@ interface APIResponse {
 // ═══════════════════════════════════════════════════════════════
 
 export default function SectorPage() {
+  const router = useRouter();
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,11 +135,9 @@ export default function SectorPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <h1 className="text-lg font-bold">섹터 로테이션</h1>
           <Button variant="ghost" size="icon" className="rounded-full" onClick={fetchData}>
             <RefreshCw className="h-5 w-5" />

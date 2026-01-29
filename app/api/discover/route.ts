@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-import YahooFinance from "yahoo-finance2";
-
-const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ═══════════════════════════════════════════════════════════════
 // 인기 종목 리스트 (신호등 체크 대상)
@@ -75,7 +72,7 @@ const POPULAR_STOCKS = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// 신호등 계산 함수 (기존 stock API와 동일한 로직)
+// 신호등 타입
 // ═══════════════════════════════════════════════════════════════
 
 interface SignalResult {
@@ -85,80 +82,53 @@ interface SignalResult {
   valuation: "good" | "normal" | "bad";
 }
 
-function getStatus(
-  value: number,
-  thresholds: { good: number; bad: number },
-  higherIsBetter: boolean = true
-): "good" | "normal" | "bad" {
-  if (higherIsBetter) {
-    if (value >= thresholds.good) return "good";
-    if (value <= thresholds.bad) return "bad";
-    return "normal";
-  } else {
-    if (value <= thresholds.good) return "good";
-    if (value >= thresholds.bad) return "bad";
-    return "normal";
+// ═══════════════════════════════════════════════════════════════
+// 기존 stock API 호출해서 신호등 가져오기
+// ═══════════════════════════════════════════════════════════════
+
+async function getSignalsFromStockAPI(ticker: string): Promise<SignalResult | null> {
+  try {
+    // 상대 경로로 기존 stock API 호출
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
+    const response = await fetch(`${baseUrl}/api/stock/${ticker}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      // 캐시 사용
+      next: { revalidate: 3600 } // 1시간 캐시
+    });
+
+    if (!response.ok) {
+      console.error(`Stock API error for ${ticker}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // indicators에서 신호등 추출
+    if (data.indicators) {
+      return {
+        earning: statusToSignal(data.indicators.earning?.status),
+        debt: statusToSignal(data.indicators.debt?.status),
+        growth: statusToSignal(data.indicators.growth?.status),
+        valuation: statusToSignal(data.indicators.valuation?.status),
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error fetching signals for ${ticker}:`, error);
+    return null;
   }
 }
 
-async function calculateSignals(ticker: string): Promise<SignalResult | null> {
-  try {
-    const [quote, quoteSummary] = await Promise.all([
-      yahooFinance.quote(ticker),
-      yahooFinance.quoteSummary(ticker, {
-        modules: [
-          "financialData",
-          "defaultKeyStatistics",
-          "incomeStatementHistory",
-          "balanceSheetHistoryQuarterly",
-        ],
-      }),
-    ]);
-
-    const financialData = quoteSummary.financialData;
-    const keyStats = quoteSummary.defaultKeyStatistics;
-    const incomeHistory = quoteSummary.incomeStatementHistory?.incomeStatementHistory || [];
-
-    // 1. 돈 버는 능력 (ROE)
-    const roe = (financialData?.returnOnEquity || 0) * 100;
-    const earning = getStatus(roe, { good: 15, bad: 5 }, true);
-
-    // 2. 빚 관리 (부채비율)
-    const debtToEquity = (financialData?.debtToEquity || 0) / 100;
-    let debt: "good" | "normal" | "bad";
-    if (debtToEquity <= 0.5) debt = "good";
-    else if (debtToEquity >= 2) debt = "bad";
-    else debt = "normal";
-
-    // 3. 성장 가능성 (매출 성장률)
-    let revenueGrowth = 0;
-    if (incomeHistory.length >= 2) {
-      const currentRev = incomeHistory[0]?.totalRevenue || 0;
-      const previousRev = incomeHistory[1]?.totalRevenue || 0;
-      if (previousRev > 0) {
-        revenueGrowth = ((currentRev - previousRev) / Math.abs(previousRev)) * 100;
-      }
-    } else {
-      revenueGrowth = (financialData?.revenueGrowth || 0) * 100;
-    }
-    const growth = getStatus(revenueGrowth, { good: 10, bad: 0 }, true);
-
-    // 4. 현재 몸값 (PER)
-    const forwardPE = keyStats?.forwardPE || quote.forwardPE || 0;
-    const trailingPE = keyStats?.trailingPE || quote.trailingPE || 0;
-    const pe = forwardPE || trailingPE;
-    
-    let valuation: "good" | "normal" | "bad";
-    if (pe <= 0) valuation = "normal"; // 적자 기업
-    else if (pe <= 15) valuation = "good";
-    else if (pe >= 40) valuation = "bad";
-    else valuation = "normal";
-
-    return { earning, debt, growth, valuation };
-  } catch (error) {
-    console.error(`Signal calculation error for ${ticker}:`, error);
-    return null;
-  }
+// green/yellow/red → good/normal/bad 변환
+function statusToSignal(status: string | undefined): "good" | "normal" | "bad" {
+  if (status === "green") return "good";
+  if (status === "red") return "bad";
+  return "normal";
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -167,16 +137,23 @@ async function calculateSignals(ticker: string): Promise<SignalResult | null> {
 
 export async function GET() {
   try {
-    // 모든 종목의 신호등 계산 (병렬)
-    const results = await Promise.all(
-      POPULAR_STOCKS.map(async (stock) => {
-        const signals = await calculateSignals(stock.ticker);
-        return {
-          ...stock,
-          signals,
-        };
-      })
-    );
+    // 모든 종목의 신호등 가져오기 (병렬, 동시 요청 제한)
+    const batchSize = 5; // 동시 요청 5개씩
+    const results: { ticker: string; name: string; sector: string; signals: SignalResult | null }[] = [];
+
+    for (let i = 0; i < POPULAR_STOCKS.length; i += batchSize) {
+      const batch = POPULAR_STOCKS.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (stock) => {
+          const signals = await getSignalsFromStockAPI(stock.ticker);
+          return {
+            ...stock,
+            signals,
+          };
+        })
+      );
+      results.push(...batchResults);
+    }
 
     // 유효한 결과만 필터링
     const validResults = results.filter(r => r.signals !== null);

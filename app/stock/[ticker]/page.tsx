@@ -238,12 +238,10 @@ function ErrorState({ message, ticker, onRetry }: { message: string; ticker?: st
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="h-5 w-5" />
-              <span className="sr-only">뒤로가기</span>
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+            <span className="sr-only">뒤로가기</span>
+          </Button>
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <span className="text-lg font-bold text-primary">미주도감</span>
           </Link>
@@ -440,12 +438,10 @@ export default function StockDetailPage() {
       {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-3">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0">
-              <ArrowLeft className="h-5 w-5" />
-              <span className="sr-only">뒤로가기</span>
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+            <span className="sr-only">뒤로가기</span>
+          </Button>
           {/* 검색바 - 클릭 시 모달 열기 */}
           <div 
             className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
@@ -454,14 +450,6 @@ export default function StockDetailPage() {
             <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm text-muted-foreground truncate">종목 검색</span>
           </div>
-          {/* 관심종목 페이지 이동 버튼 - 홈과 동일한 스타일 */}
-          <Link 
-            href="/watchlist"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-xs font-medium flex-shrink-0"
-          >
-            <Heart className="h-3.5 w-3.5 fill-current" />
-            <span>관심</span>
-          </Link>
           <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={handleShare}>
             <Share2 className="h-5 w-5" />
             <span className="sr-only">공유하기</span>

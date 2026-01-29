@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, RefreshCw, Sparkles, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -62,6 +63,7 @@ function SignalRow({ signals }: { signals: StockSignals }) {
 // ═══════════════════════════════════════════════════════════════
 
 export default function DiscoverPage() {
+  const router = useRouter();
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,11 +97,9 @@ export default function DiscoverPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-yellow-500" />
             올그린 발견
