@@ -265,16 +265,26 @@ function LoadingSkeleton() {
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-10 flex-1 rounded-full" />
-          <Skeleton className="h-8 w-16 rounded-full" />
+          <Skeleton className="h-10 w-10 rounded-full" />
         </div>
       </header>
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="text-5xl mb-6 animate-bounce">🔍</div>
+          <h2 className="text-xl font-bold mb-3">지금 올그린 종목을 찾고 있어요!</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            4가지 핵심 지표가 모두 "좋음"인 종목을 분석 중이에요
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            (돈버는능력, 빚관리, 성장가능성, 현재몸값)
+          </p>
+          <div className="mt-8 flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse delay-100" />
+            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse delay-200" />
+            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse delay-300" />
+          </div>
+        </div>
       </div>
     </div>
   );
