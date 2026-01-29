@@ -99,7 +99,7 @@ export default function WatchlistPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* 검색 모달 */}
       <HeaderSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
       
@@ -117,11 +117,6 @@ export default function WatchlistPage() {
             <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm text-muted-foreground truncate">종목 검색</span>
           </div>
-          {/* 현재 페이지 표시 - 관심 종목 */}
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-red-100 text-red-600 text-xs font-medium flex-shrink-0">
-            <Heart className="h-3.5 w-3.5 fill-current" />
-            <span>관심 {watchlist.length}</span>
-          </div>
           <Button 
             variant="ghost" 
             size="icon"
@@ -134,6 +129,15 @@ export default function WatchlistPage() {
       </header>
 
       <main className="px-4 py-6 max-w-2xl mx-auto">
+        {/* 본문 제목 */}
+        <div className="flex items-center gap-2 mb-4">
+          <Heart className="h-6 w-6 text-red-500 fill-current" />
+          <h1 className="text-xl font-bold">관심 종목</h1>
+          <span className="px-2 py-0.5 bg-red-100 text-red-600 text-sm font-medium rounded-full">
+            {watchlist.length}개
+          </span>
+        </div>
+
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

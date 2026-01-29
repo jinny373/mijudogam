@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ═══════════════════════════════════════════════════════════════
-// 인기 종목 리스트 (신호등 체크 대상)
+// 인기 종목 리스트
 // ═══════════════════════════════════════════════════════════════
 
 const POPULAR_STOCKS = [
@@ -29,7 +32,6 @@ const POPULAR_STOCKS = [
   { ticker: "ADBE", name: "어도비", sector: "소프트웨어" },
   { ticker: "ORCL", name: "오라클", sector: "소프트웨어" },
   { ticker: "NOW", name: "서비스나우", sector: "소프트웨어" },
-  { ticker: "SNOW", name: "스노우플레이크", sector: "소프트웨어" },
   
   // 금융
   { ticker: "V", name: "비자", sector: "금융" },
@@ -61,18 +63,10 @@ const POPULAR_STOCKS = [
   // 기타 인기
   { ticker: "NFLX", name: "넷플릭스", sector: "미디어" },
   { ticker: "DIS", name: "디즈니", sector: "미디어" },
-  { ticker: "COIN", name: "코인베이스", sector: "핀테크" },
-  { ticker: "UBER", name: "우버", sector: "플랫폼" },
-  { ticker: "ABNB", name: "에어비앤비", sector: "플랫폼" },
-  
-  // AI 인프라
-  { ticker: "VRT", name: "버티브", sector: "인프라" },
-  { ticker: "ETN", name: "이튼", sector: "인프라" },
-  { ticker: "CEG", name: "컨스털레이션", sector: "에너지" },
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// 신호등 타입
+// 신호등 계산 (stock API와 동일한 로직)
 // ═══════════════════════════════════════════════════════════════
 
 interface SignalResult {
@@ -82,53 +76,237 @@ interface SignalResult {
   valuation: "good" | "normal" | "bad";
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 기존 stock API 호출해서 신호등 가져오기
-// ═══════════════════════════════════════════════════════════════
-
-async function getSignalsFromStockAPI(ticker: string): Promise<SignalResult | null> {
-  try {
-    // 상대 경로로 기존 stock API 호출
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    
-    const response = await fetch(`${baseUrl}/api/stock/${ticker}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      // 캐시 사용
-      next: { revalidate: 3600 } // 1시간 캐시
-    });
-
-    if (!response.ok) {
-      console.error(`Stock API error for ${ticker}: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    // indicators에서 신호등 추출
-    if (data.indicators) {
-      return {
-        earning: statusToSignal(data.indicators.earning?.status),
-        debt: statusToSignal(data.indicators.debt?.status),
-        growth: statusToSignal(data.indicators.growth?.status),
-        valuation: statusToSignal(data.indicators.valuation?.status),
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error(`Error fetching signals for ${ticker}:`, error);
-    return null;
+function getStatusForSignal(
+  value: number,
+  thresholds: { good: number; bad: number },
+  higherIsBetter: boolean = true
+): "green" | "yellow" | "red" {
+  if (higherIsBetter) {
+    if (value >= thresholds.good) return "green";
+    if (value <= thresholds.bad) return "red";
+    return "yellow";
+  } else {
+    if (value <= thresholds.good) return "green";
+    if (value >= thresholds.bad) return "red";
+    return "yellow";
   }
 }
 
-// green/yellow/red → good/normal/bad 변환
-function statusToSignal(status: string | undefined): "good" | "normal" | "bad" {
+function statusToSignal(status: "green" | "yellow" | "red"): "good" | "normal" | "bad" {
   if (status === "green") return "good";
-  if (status === "red") return "bad";
-  return "normal";
+  if (status === "yellow") return "normal";
+  return "bad";
+}
+
+async function calculateSignalsForTicker(ticker: string): Promise<SignalResult | null> {
+  try {
+    const [quote, quoteSummary, fundamentals] = await Promise.all([
+      yahooFinance.quote(ticker),
+      yahooFinance.quoteSummary(ticker, {
+        modules: [
+          "financialData",
+          "defaultKeyStatistics",
+          "incomeStatementHistory",
+          "incomeStatementHistoryQuarterly",
+          "cashflowStatementHistory",
+          "balanceSheetHistoryQuarterly",
+        ],
+      }),
+      yahooFinance.fundamentalsTimeSeries(ticker, {
+        period1: new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        period2: new Date().toISOString().split('T')[0],
+        type: 'quarterly',
+        module: 'all',
+      }).catch(() => []),
+    ]);
+    
+    const financialData = quoteSummary.financialData;
+    const keyStats = quoteSummary.defaultKeyStatistics;
+    const incomeHistory = quoteSummary.incomeStatementHistory?.incomeStatementHistory || [];
+    const incomeQuarterly = quoteSummary.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const cashflowHistory = quoteSummary.cashflowStatementHistory?.cashflowStatements || [];
+    const balanceSheetQuarterly = quoteSummary.balanceSheetHistoryQuarterly?.balanceSheetStatements || [];
+    
+    const fundamentalsData = Array.isArray(fundamentals) ? fundamentals : [];
+    const fundamentalsQuarterly = fundamentalsData
+      .filter((f: any) => f.date)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-8);
+    
+    // ROE
+    const roe = financialData?.returnOnEquity || 0;
+    
+    // OCF
+    const ocfFromHistory = cashflowHistory.length > 0 
+      ? (cashflowHistory[0]?.totalCashFromOperatingActivities || 0) 
+      : 0;
+    const isNegativeOCF = ocfFromHistory < 0;
+    
+    // 매출 (pre-revenue 체크용)
+    const actualRevenue = incomeHistory.length > 0 ? (incomeHistory[0]?.totalRevenue || 0) : 0;
+    const isPreRevenueCompany = actualRevenue === 0 || actualRevenue < 1000000;
+    
+    // 연간 순이익 (턴어라운드 체크용)
+    const netIncomeCurrentYear = incomeHistory.length > 0 ? (incomeHistory[0]?.netIncome || 0) : 0;
+    const isAnnualLoss = netIncomeCurrentYear < 0;
+    
+    // 분기별 매출/이익 추이
+    let quarterlyTrend: { quarter: string; revenue: number; netIncome: number }[] = [];
+    if (incomeQuarterly.length > 0) {
+      quarterlyTrend = incomeQuarterly.slice(0, 4).map((q: any) => {
+        const quarter = q.endDate ? new Date(q.endDate) : null;
+        const quarterLabel = quarter 
+          ? `${quarter.getFullYear()}Q${Math.ceil((quarter.getMonth() + 1) / 3)}`
+          : "N/A";
+        return {
+          quarter: quarterLabel,
+          revenue: q.totalRevenue || 0,
+          netIncome: q.netIncome || 0,
+        };
+      }).reverse();
+    }
+    
+    // 최신 분기 흑자 체크
+    const latestQuarterNetIncome = quarterlyTrend.length > 0 
+      ? quarterlyTrend[quarterlyTrend.length - 1].netIncome 
+      : null;
+    const isLatestQuarterProfit = latestQuarterNetIncome !== null && latestQuarterNetIncome > 0;
+    const isTurnaroundInProgress = isAnnualLoss && isLatestQuarterProfit;
+    
+    // 부채비율
+    const debtToEquityRaw = financialData?.debtToEquity || 0;
+    const debtToEquity = debtToEquityRaw / 100;
+    
+    let quarterlyDebtTrend: { debtToEquity: number | null }[] = [];
+    if (balanceSheetQuarterly.length > 0) {
+      quarterlyDebtTrend = balanceSheetQuarterly.slice(0, 4).map((q: any) => {
+        const shortTermDebt = q.shortLongTermDebt || q.shortTermDebt || 0;
+        const longTermDebt = q.longTermDebt || 0;
+        const totalDebt = shortTermDebt + longTermDebt;
+        const totalEquity = q.totalStockholderEquity || q.stockholdersEquity || 0;
+        const debtToEquityQ = totalEquity > 0 ? totalDebt / totalEquity : null;
+        return { debtToEquity: debtToEquityQ };
+      }).reverse();
+    } else if (fundamentalsQuarterly.length > 0) {
+      quarterlyDebtTrend = fundamentalsQuarterly.slice(-4).map((f: any) => {
+        const totalDebt = f.quarterlyTotalDebt || f.totalDebt || 
+                          (f.quarterlyLongTermDebt || 0) + (f.quarterlyCurrentDebt || 0) || 0;
+        const totalEquity = f.quarterlyStockholdersEquity || f.stockholdersEquity || 
+                            f.quarterlyTotalEquityGrossMinorityInterest || 0;
+        const debtToEquityQ = totalEquity > 0 ? totalDebt / totalEquity : null;
+        return { debtToEquity: debtToEquityQ };
+      });
+    }
+    
+    const latestQuarterDebt = quarterlyDebtTrend.length > 0 
+      ? quarterlyDebtTrend[quarterlyDebtTrend.length - 1] 
+      : null;
+    const latestQuarterDebtToEquity = latestQuarterDebt?.debtToEquity ?? debtToEquity;
+    const hasQuarterlyDebtData = quarterlyDebtTrend.length > 0 && latestQuarterDebt?.debtToEquity !== null;
+    const displayDebtToEquity = hasQuarterlyDebtData ? latestQuarterDebtToEquity : debtToEquity;
+    
+    // 성장률
+    let revenueGrowthCalc: number | null = null;
+    
+    if (incomeHistory.length >= 2) {
+      const currentRev = incomeHistory[0]?.totalRevenue || 0;
+      const previousRev = incomeHistory[1]?.totalRevenue || 0;
+      if (previousRev > 0) {
+        revenueGrowthCalc = (currentRev - previousRev) / Math.abs(previousRev);
+      }
+    } else if (fundamentalsQuarterly.length >= 5) {
+      const recentFour = fundamentalsQuarterly.slice(-4);
+      const previousFour = fundamentalsQuarterly.slice(-8, -4);
+      
+      const revenueCurrentYear = recentFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyTotalRevenue || f.totalRevenue || 0), 0);
+      const revenuePreviousYear = previousFour.reduce((sum: number, f: any) => 
+        sum + (f.quarterlyTotalRevenue || f.totalRevenue || 0), 0);
+      
+      if (revenuePreviousYear > 0) {
+        revenueGrowthCalc = (revenueCurrentYear - revenuePreviousYear) / Math.abs(revenuePreviousYear);
+      }
+    } else {
+      revenueGrowthCalc = financialData?.revenueGrowth || null;
+    }
+    
+    const hasRevenueGrowthData = revenueGrowthCalc !== null && !isNaN(revenueGrowthCalc);
+    const revenueGrowth = revenueGrowthCalc ?? 0;
+    
+    // 분기별 성장률 fallback
+    let fallbackGrowthRate: number | null = null;
+    if (quarterlyTrend.length >= 2) {
+      const latest = quarterlyTrend[quarterlyTrend.length - 1];
+      const prev = quarterlyTrend[quarterlyTrend.length - 2];
+      if (prev.revenue > 0) {
+        fallbackGrowthRate = (latest.revenue - prev.revenue) / prev.revenue;
+      }
+    }
+    const canUseQuarterlyGrowth = !hasRevenueGrowthData && fallbackGrowthRate !== null;
+    
+    // PER
+    const trailingPER = keyStats?.trailingPE || quote?.trailingPE || 0;
+    const forwardPER = keyStats?.forwardPE || financialData?.forwardPE || 0;
+    const per = trailingPER > 0 ? trailingPER : forwardPER;
+    const isNegativePER = per < 0;
+    
+    // ═══════════════════════════════════════════════════════════════
+    // EARNING
+    // ═══════════════════════════════════════════════════════════════
+    let earningStatus: "green" | "yellow" | "red";
+    if (isPreRevenueCompany) {
+      earningStatus = "yellow";
+    } else if (isTurnaroundInProgress) {
+      earningStatus = "yellow";
+    } else if (isNegativeOCF) {
+      earningStatus = "red";
+    } else {
+      earningStatus = getStatusForSignal(roe, { good: 0.15, bad: 0.05 }, true);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // DEBT
+    // ═══════════════════════════════════════════════════════════════
+    const debtStatus = getStatusForSignal(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false);
+    
+    // ═══════════════════════════════════════════════════════════════
+    // GROWTH
+    // ═══════════════════════════════════════════════════════════════
+    let growthStatus: "green" | "yellow" | "red";
+    if (isPreRevenueCompany) {
+      growthStatus = "yellow";
+    } else if (hasRevenueGrowthData) {
+      if (revenueGrowth > 0.15) growthStatus = "green";
+      else if (revenueGrowth > 0) growthStatus = "yellow";
+      else growthStatus = "red";
+    } else if (canUseQuarterlyGrowth && fallbackGrowthRate !== null) {
+      if (fallbackGrowthRate > 0.15) growthStatus = "green";
+      else if (fallbackGrowthRate > 0) growthStatus = "yellow";
+      else growthStatus = "red";
+    } else {
+      growthStatus = "yellow";
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // VALUATION
+    // ═══════════════════════════════════════════════════════════════
+    let valuationStatus: "green" | "yellow" | "red";
+    if (isNegativePER) {
+      valuationStatus = "yellow";
+    } else {
+      valuationStatus = getStatusForSignal(per, { good: 40, bad: 60 }, false);
+    }
+    
+    return {
+      earning: statusToSignal(earningStatus),
+      debt: statusToSignal(debtStatus),
+      growth: statusToSignal(growthStatus),
+      valuation: statusToSignal(valuationStatus),
+    };
+  } catch (error) {
+    console.error(`calculateSignalsForTicker error for ${ticker}:`, error);
+    return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -137,15 +315,15 @@ function statusToSignal(status: string | undefined): "good" | "normal" | "bad" {
 
 export async function GET() {
   try {
-    // 모든 종목의 신호등 가져오기 (병렬, 동시 요청 제한)
-    const batchSize = 5; // 동시 요청 5개씩
+    // 동시 요청 제한 (5개씩)
+    const batchSize = 5;
     const results: { ticker: string; name: string; sector: string; signals: SignalResult | null }[] = [];
 
     for (let i = 0; i < POPULAR_STOCKS.length; i += batchSize) {
       const batch = POPULAR_STOCKS.slice(i, i + batchSize);
       const batchResults = await Promise.all(
         batch.map(async (stock) => {
-          const signals = await getSignalsFromStockAPI(stock.ticker);
+          const signals = await calculateSignalsForTicker(stock.ticker);
           return {
             ...stock,
             signals,
@@ -190,7 +368,6 @@ export async function GET() {
         name: r.name,
         sector: r.sector,
         signals: r.signals,
-        // 어떤 지표가 good이 아닌지 표시
         notGood: Object.entries(r.signals!)
           .filter(([_, v]) => v !== "good")
           .map(([k, _]) => k)[0],

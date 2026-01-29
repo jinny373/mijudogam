@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, RefreshCw, Sparkles, ChevronRight } from "lucide-react"
+import { ArrowLeft, Sparkles, ChevronRight, Search } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { HeaderSearchModal } from "@/components/header-search-modal"
 
 // ═══════════════════════════════════════════════════════════════
 // 타입 정의
@@ -67,6 +68,7 @@ export default function DiscoverPage() {
   const [data, setData] = useState<APIResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -94,35 +96,44 @@ export default function DiscoverPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
+      {/* 검색 모달 */}
+      <HeaderSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
+        <div className="flex items-center gap-2 max-w-2xl mx-auto">
+          <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-yellow-500" />
-            올그린 발견
-          </h1>
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={fetchData}>
-            <RefreshCw className="h-5 w-5" />
-          </Button>
+          {/* 검색바 */}
+          <div 
+            className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
+            onClick={() => setIsSearchOpen(true)}
+          >
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-muted-foreground truncate">종목 검색</span>
+          </div>
+          {/* 현재 페이지 표시 */}
+          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium flex-shrink-0">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>발견</span>
+          </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-6">
+        {/* 본문 제목 */}
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-6 w-6 text-yellow-500" />
+          <h1 className="text-xl font-bold">올그린 종목</h1>
+        </div>
+
         {/* 설명 */}
         <Card className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-          <div className="flex items-start gap-3">
-            <div className="text-3xl">✨</div>
-            <div>
-              <h2 className="font-bold text-green-900 mb-1">올그린 종목이란?</h2>
-              <p className="text-sm text-green-800">
-                4가지 핵심 지표(돈버는능력, 빚관리, 성장가능성, 현재몸값)가 
-                <span className="font-semibold"> 모두 "좋음"</span>인 종목이에요.
-              </p>
-            </div>
-          </div>
+          <p className="text-sm text-green-800">
+            4가지 핵심 지표(돈버는능력, 빚관리, 성장가능성, 현재몸값)가 
+            <span className="font-semibold"> 모두 "좋음"</span>인 종목이에요.
+          </p>
         </Card>
 
         {/* 지표 범례 */}
@@ -256,16 +267,16 @@ function LoadingSkeleton() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
+        <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Skeleton className="h-10 w-10 rounded-full" />
-          <Skeleton className="h-6 w-32" />
-          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-10 flex-1 rounded-full" />
+          <Skeleton className="h-8 w-16 rounded-full" />
         </div>
       </header>
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        <Skeleton className="h-24 w-full rounded-xl" />
-        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-8 w-40" />
         <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-6 w-32" />
         <Skeleton className="h-20 w-full rounded-xl" />
         <Skeleton className="h-20 w-full rounded-xl" />
         <Skeleton className="h-20 w-full rounded-xl" />

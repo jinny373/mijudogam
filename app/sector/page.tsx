@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, RefreshCw, Info } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Search } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { HeaderSearchModal } from "@/components/header-search-modal"
 
 // ═══════════════════════════════════════════════════════════════
 // 타입 정의
@@ -105,6 +106,7 @@ export default function SectorPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"macro" | "sector" | "valuechain">("macro");
   const [selectedPeriod, setSelectedPeriod] = useState<"1W" | "1M" | "3M" | "6M" | "1Y">("3M");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -132,16 +134,27 @@ export default function SectorPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
+      {/* 검색 모달 */}
+      <HeaderSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {/* Header with Search */}
       <header className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
+        <div className="flex items-center gap-2 max-w-2xl mx-auto">
+          <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold">섹터 로테이션</h1>
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={fetchData}>
-            <RefreshCw className="h-5 w-5" />
-          </Button>
+          {/* 검색바 */}
+          <div 
+            className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
+            onClick={() => setIsSearchOpen(true)}
+          >
+            <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-muted-foreground truncate">종목 검색</span>
+          </div>
+          {/* 현재 페이지 표시 */}
+          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex-shrink-0">
+            <span>📊 섹터</span>
+          </div>
         </div>
       </header>
 
