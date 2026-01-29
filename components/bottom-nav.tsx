@@ -2,13 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Search, PieChart, Sparkles, Heart } from "lucide-react"
+import { Home, PieChart, Sparkles, Heart } from "lucide-react"
 
 const tabs = [
   {
-    name: "종목",
+    name: "홈",
     href: "/",
-    icon: Search,
+    icon: Home,
     matchPaths: ["/", "/stock"],
   },
   {
