@@ -4,11 +4,11 @@ import YahooFinance from "yahoo-finance2";
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ═══════════════════════════════════════════════════════════════
-// 인기 종목 리스트
+// 핵심 인기 종목 리스트 (30개로 축소 - 타임아웃 방지)
 // ═══════════════════════════════════════════════════════════════
 
 const POPULAR_STOCKS = [
-  // 빅테크
+  // 빅테크 (7)
   { ticker: "AAPL", name: "애플", sector: "기술" },
   { ticker: "MSFT", name: "마이크로소프트", sector: "기술" },
   { ticker: "GOOGL", name: "구글", sector: "기술" },
@@ -17,51 +17,39 @@ const POPULAR_STOCKS = [
   { ticker: "NVDA", name: "엔비디아", sector: "반도체" },
   { ticker: "TSLA", name: "테슬라", sector: "자동차" },
   
-  // 반도체
+  // 반도체 (4)
   { ticker: "AMD", name: "AMD", sector: "반도체" },
   { ticker: "AVGO", name: "브로드컴", sector: "반도체" },
   { ticker: "QCOM", name: "퀄컴", sector: "반도체" },
   { ticker: "MU", name: "마이크론", sector: "반도체" },
-  { ticker: "INTC", name: "인텔", sector: "반도체" },
-  { ticker: "TSM", name: "TSMC", sector: "반도체" },
-  { ticker: "ASML", name: "ASML", sector: "반도체" },
   
-  // AI/소프트웨어
-  { ticker: "PLTR", name: "팔란티어", sector: "AI" },
-  { ticker: "CRM", name: "세일즈포스", sector: "소프트웨어" },
-  { ticker: "ADBE", name: "어도비", sector: "소프트웨어" },
-  { ticker: "ORCL", name: "오라클", sector: "소프트웨어" },
-  { ticker: "NOW", name: "서비스나우", sector: "소프트웨어" },
-  
-  // 금융
+  // 금융 (4)
   { ticker: "V", name: "비자", sector: "금융" },
   { ticker: "MA", name: "마스터카드", sector: "금융" },
   { ticker: "JPM", name: "JP모건", sector: "금융" },
-  { ticker: "GS", name: "골드만삭스", sector: "금융" },
   { ticker: "BRK-B", name: "버크셔해서웨이", sector: "금융" },
   
-  // 헬스케어
+  // 헬스케어 (4)
   { ticker: "UNH", name: "유나이티드헬스", sector: "헬스케어" },
   { ticker: "JNJ", name: "존슨앤존슨", sector: "헬스케어" },
   { ticker: "LLY", name: "일라이릴리", sector: "헬스케어" },
-  { ticker: "PFE", name: "화이자", sector: "헬스케어" },
   { ticker: "ABBV", name: "애브비", sector: "헬스케어" },
   
-  // 소비재
+  // 소비재 (4)
   { ticker: "COST", name: "코스트코", sector: "소비재" },
   { ticker: "WMT", name: "월마트", sector: "소비재" },
-  { ticker: "NKE", name: "나이키", sector: "소비재" },
-  { ticker: "SBUX", name: "스타벅스", sector: "소비재" },
   { ticker: "MCD", name: "맥도날드", sector: "소비재" },
   { ticker: "HD", name: "홈디포", sector: "소비재" },
   
-  // 에너지/유틸리티
+  // 에너지 (2)
   { ticker: "XOM", name: "엑슨모빌", sector: "에너지" },
   { ticker: "CVX", name: "쉐브론", sector: "에너지" },
-  { ticker: "NEE", name: "넥스트에라", sector: "유틸리티" },
   
-  // 기타 인기
+  // 기타 인기 (5)
   { ticker: "NFLX", name: "넷플릭스", sector: "미디어" },
+  { ticker: "CRM", name: "세일즈포스", sector: "소프트웨어" },
+  { ticker: "ORCL", name: "오라클", sector: "소프트웨어" },
+  { ticker: "ADBE", name: "어도비", sector: "소프트웨어" },
   { ticker: "DIS", name: "디즈니", sector: "미디어" },
 ];
 
@@ -250,9 +238,7 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
     const per = trailingPER > 0 ? trailingPER : forwardPER;
     const isNegativePER = per < 0;
     
-    // ═══════════════════════════════════════════════════════════════
     // EARNING
-    // ═══════════════════════════════════════════════════════════════
     let earningStatus: "green" | "yellow" | "red";
     if (isPreRevenueCompany) {
       earningStatus = "yellow";
@@ -264,14 +250,10 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
       earningStatus = getStatusForSignal(roe, { good: 0.15, bad: 0.05 }, true);
     }
     
-    // ═══════════════════════════════════════════════════════════════
     // DEBT
-    // ═══════════════════════════════════════════════════════════════
     const debtStatus = getStatusForSignal(displayDebtToEquity, { good: 0.5, bad: 1.5 }, false);
     
-    // ═══════════════════════════════════════════════════════════════
     // GROWTH
-    // ═══════════════════════════════════════════════════════════════
     let growthStatus: "green" | "yellow" | "red";
     if (isPreRevenueCompany) {
       growthStatus = "yellow";
@@ -287,9 +269,7 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
       growthStatus = "yellow";
     }
     
-    // ═══════════════════════════════════════════════════════════════
     // VALUATION
-    // ═══════════════════════════════════════════════════════════════
     let valuationStatus: "green" | "yellow" | "red";
     if (isNegativePER) {
       valuationStatus = "yellow";
@@ -315,23 +295,16 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
 
 export async function GET() {
   try {
-    // 동시 요청 제한 (5개씩)
-    const batchSize = 5;
-    const results: { ticker: string; name: string; sector: string; signals: SignalResult | null }[] = [];
-
-    for (let i = 0; i < POPULAR_STOCKS.length; i += batchSize) {
-      const batch = POPULAR_STOCKS.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (stock) => {
-          const signals = await calculateSignalsForTicker(stock.ticker);
-          return {
-            ...stock,
-            signals,
-          };
-        })
-      );
-      results.push(...batchResults);
-    }
+    // 모든 종목 병렬 처리 (30개라서 가능)
+    const results = await Promise.all(
+      POPULAR_STOCKS.map(async (stock) => {
+        const signals = await calculateSignalsForTicker(stock.ticker);
+        return {
+          ...stock,
+          signals,
+        };
+      })
+    );
 
     // 유효한 결과만 필터링
     const validResults = results.filter(r => r.signals !== null);

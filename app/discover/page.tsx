@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Sparkles, ChevronRight, Search } from "lucide-react"
+import { ArrowLeft, Sparkles, ChevronRight, Search, Share2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -70,6 +70,23 @@ export default function DiscoverPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // 공유 기능
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = "올그린 종목 발견 - 미주도감";
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch (e) {
+        // 취소됨
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert("링크가 복사되었어요!");
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -113,11 +130,10 @@ export default function DiscoverPage() {
             <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm text-muted-foreground truncate">종목 검색</span>
           </div>
-          {/* 현재 페이지 표시 */}
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium flex-shrink-0">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>발견</span>
-          </div>
+          {/* 공유 버튼 */}
+          <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={handleShare}>
+            <Share2 className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
