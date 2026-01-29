@@ -12,7 +12,7 @@ function HomeContent() {
   const shouldFocusSearch = searchParams.get("focus") === "search"
 
   return (
-    <main className="min-h-screen bg-background flex flex-col">
+    <main className="min-h-screen bg-background flex flex-col pb-16">
       {/* Header */}
       <header className="w-full px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between">

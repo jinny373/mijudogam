@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import PageViewTracker from '@/components/PageViewTracker'
 import { PWARegister } from '@/components/pwa-register'
+import { BottomNav } from '@/components/bottom-nav'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -108,6 +109,7 @@ export default function RootLayout({
         <PageViewTracker />
         <PWARegister />
         {children}
+        <BottomNav />
         <Analytics />
       </body>
     </html>
