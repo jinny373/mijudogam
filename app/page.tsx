@@ -3,8 +3,6 @@
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import Image from "next/image"
-import Link from "next/link"
-import { Heart } from "lucide-react"
 import { StockSearchForm } from "@/components/stock-search-form"
 
 function HomeContent() {
@@ -15,15 +13,8 @@ function HomeContent() {
     <main className="min-h-screen bg-background flex flex-col pb-16">
       {/* Header */}
       <header className="w-full px-4 py-4 sm:px-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-center">
           <h1 className="text-2xl font-bold text-primary">미주도감</h1>
-          <Link 
-            href="/watchlist"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-sm font-medium"
-          >
-            <Heart className="h-4 w-4 fill-current" />
-            <span>관심 종목</span>
-          </Link>
         </div>
       </header>
 

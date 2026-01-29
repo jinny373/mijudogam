@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Search, PieChart, TrendingUp, Heart } from "lucide-react"
+import { Search, PieChart, Sparkles, Heart } from "lucide-react"
 
 const tabs = [
   {
@@ -18,10 +18,10 @@ const tabs = [
     matchPaths: ["/sector"],
   },
   {
-    name: "시장",
-    href: "/market",
-    icon: TrendingUp,
-    matchPaths: ["/market"],
+    name: "발견",
+    href: "/discover",
+    icon: Sparkles,
+    matchPaths: ["/discover"],
   },
   {
     name: "관심",
