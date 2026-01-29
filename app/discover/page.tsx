@@ -30,8 +30,8 @@ interface StockData {
 
 interface APIResponse {
   allGreen: StockData[];
-  threeGreen: StockData[];
   totalChecked: number;
+  validCount: number;
   lastUpdated: string;
 }
 
@@ -195,27 +195,6 @@ export default function DiscoverPage() {
             </Card>
           )}
         </section>
-
-        {/* 3개 good 종목 */}
-        {data.threeGreen.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="font-bold text-lg">🟢🟢🟢🟡 거의 올그린</h3>
-              <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
-                {data.threeGreen.length}개
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              3가지 지표가 좋고, 1가지만 아쉬운 종목들
-            </p>
-
-            <div className="space-y-2">
-              {data.threeGreen.map((stock) => (
-                <StockCard key={stock.ticker} stock={stock} />
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* 하단 정보 */}
         <div className="text-center space-y-2 pt-4">

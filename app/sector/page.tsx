@@ -260,9 +260,39 @@ function TabButton({
 // 탭 1: 매크로
 // ═══════════════════════════════════════════════════════════════
 
+// ETF 티커 → 한글 변환
+const SECTOR_NAME_MAP: Record<string, string> = {
+  "XLK": "기술",
+  "XLF": "금융",
+  "XLV": "헬스케어",
+  "XLE": "에너지",
+  "XLU": "유틸리티",
+  "XLI": "산업재",
+  "XLY": "임의소비재",
+  "XLP": "필수소비재",
+  "XLB": "소재",
+  "XLRE": "부동산",
+  "XLC": "통신",
+};
+
+function tickersToKorean(tickers: string[]): string {
+  return tickers.map(t => SECTOR_NAME_MAP[t] || t).join(", ");
+}
+
 function MacroTab({ data }: { data: MacroData }) {
   return (
     <div className="space-y-4">
+      {/* AI 종합 판단 - 맨 위로 */}
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">💡</span>
+          <h3 className="font-semibold text-blue-900">AI 종합 판단</h3>
+        </div>
+        <p className="text-sm text-blue-800 leading-relaxed">
+          {data.summary}
+        </p>
+      </Card>
+
       {/* 금리 */}
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -397,24 +427,13 @@ function MacroTab({ data }: { data: MacroData }) {
         <div className="space-y-2">
           <p className="text-sm">
             <span className="text-green-600 font-medium">✅ 유리한 섹터: </span>
-            {data.cycle.favorableSectors.join(", ")}
+            {tickersToKorean(data.cycle.favorableSectors)}
           </p>
           <p className="text-sm">
             <span className="text-red-600 font-medium">⚠️ 불리한 섹터: </span>
-            {data.cycle.unfavorableSectors.join(", ")}
+            {tickersToKorean(data.cycle.unfavorableSectors)}
           </p>
         </div>
-      </Card>
-
-      {/* 종합 판단 */}
-      <Card className="p-4 bg-blue-50 border-blue-200">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg">💡</span>
-          <h3 className="font-semibold text-blue-900">종합 판단</h3>
-        </div>
-        <p className="text-sm text-blue-800 leading-relaxed">
-          {data.summary}
-        </p>
       </Card>
     </div>
   );
@@ -459,6 +478,17 @@ function SectorTab({
 
   return (
     <div className="space-y-4">
+      {/* AI 해석 - 맨 위로 */}
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">💡</span>
+          <h3 className="font-semibold text-blue-900">AI 해석</h3>
+        </div>
+        <p className="text-sm text-blue-800 leading-relaxed">
+          {summary}
+        </p>
+      </Card>
+
       {/* 기간 선택 */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {(["1W", "1M", "3M", "6M", "1Y"] as const).map((period) => (
@@ -550,17 +580,6 @@ function SectorTab({
           </div>
         </div>
       )}
-
-      {/* 요약 */}
-      <Card className="p-4 bg-blue-50 border-blue-200">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg">💡</span>
-          <h3 className="font-semibold text-blue-900">AI 해석</h3>
-        </div>
-        <p className="text-sm text-blue-800 leading-relaxed">
-          {summary}
-        </p>
-      </Card>
     </div>
   );
 }
@@ -620,6 +639,17 @@ function ValueChainTab({
 }) {
   return (
     <div className="space-y-4">
+      {/* AI 해석 - 맨 위로 */}
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-lg">💡</span>
+          <h3 className="font-semibold text-blue-900">AI 해석</h3>
+        </div>
+        <p className="text-sm text-blue-800 leading-relaxed">
+          {summary}
+        </p>
+      </Card>
+
       {/* 밸류체인 흐름도 */}
       <Card className="p-4">
         <h3 className="font-semibold mb-3">빅테크 투자금이 흐르는 순서</h3>
@@ -710,17 +740,6 @@ function ValueChainTab({
           </Card>
         ))}
       </div>
-
-      {/* 요약 */}
-      <Card className="p-4 bg-blue-50 border-blue-200">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg">💡</span>
-          <h3 className="font-semibold text-blue-900">AI 해석</h3>
-        </div>
-        <p className="text-sm text-blue-800 leading-relaxed">
-          {summary}
-        </p>
-      </Card>
     </div>
   );
 }

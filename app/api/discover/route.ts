@@ -4,7 +4,7 @@ import YahooFinance from "yahoo-finance2";
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ═══════════════════════════════════════════════════════════════
-// 핵심 인기 종목 리스트 (30개로 축소 - 타임아웃 방지)
+// 인기 종목 리스트 (60개)
 // ═══════════════════════════════════════════════════════════════
 
 const POPULAR_STOCKS = [
@@ -17,40 +17,76 @@ const POPULAR_STOCKS = [
   { ticker: "NVDA", name: "엔비디아", sector: "반도체" },
   { ticker: "TSLA", name: "테슬라", sector: "자동차" },
   
-  // 반도체 (4)
+  // 반도체 (8)
   { ticker: "AMD", name: "AMD", sector: "반도체" },
   { ticker: "AVGO", name: "브로드컴", sector: "반도체" },
   { ticker: "QCOM", name: "퀄컴", sector: "반도체" },
   { ticker: "MU", name: "마이크론", sector: "반도체" },
+  { ticker: "INTC", name: "인텔", sector: "반도체" },
+  { ticker: "TSM", name: "TSMC", sector: "반도체" },
+  { ticker: "ASML", name: "ASML", sector: "반도체" },
+  { ticker: "MRVL", name: "마벨테크", sector: "반도체" },
   
-  // 금융 (4)
+  // AI/소프트웨어 (8)
+  { ticker: "PLTR", name: "팔란티어", sector: "AI" },
+  { ticker: "CRM", name: "세일즈포스", sector: "소프트웨어" },
+  { ticker: "ADBE", name: "어도비", sector: "소프트웨어" },
+  { ticker: "ORCL", name: "오라클", sector: "소프트웨어" },
+  { ticker: "NOW", name: "서비스나우", sector: "소프트웨어" },
+  { ticker: "SNOW", name: "스노우플레이크", sector: "소프트웨어" },
+  { ticker: "PANW", name: "팔로알토", sector: "보안" },
+  { ticker: "CRWD", name: "크라우드스트라이크", sector: "보안" },
+  
+  // AI 인프라/에너지 (6)
+  { ticker: "IREN", name: "아이렌", sector: "AI인프라" },
+  { ticker: "VRT", name: "버티브", sector: "AI인프라" },
+  { ticker: "ETN", name: "이튼", sector: "AI인프라" },
+  { ticker: "CEG", name: "컨스털레이션", sector: "에너지" },
+  { ticker: "VST", name: "비스트라", sector: "에너지" },
+  { ticker: "CORZ", name: "코어사이언티픽", sector: "AI인프라" },
+  
+  // 금융 (6)
   { ticker: "V", name: "비자", sector: "금융" },
   { ticker: "MA", name: "마스터카드", sector: "금융" },
   { ticker: "JPM", name: "JP모건", sector: "금융" },
+  { ticker: "GS", name: "골드만삭스", sector: "금융" },
   { ticker: "BRK-B", name: "버크셔해서웨이", sector: "금융" },
+  { ticker: "AXP", name: "아멕스", sector: "금융" },
   
-  // 헬스케어 (4)
+  // 헬스케어 (6)
   { ticker: "UNH", name: "유나이티드헬스", sector: "헬스케어" },
   { ticker: "JNJ", name: "존슨앤존슨", sector: "헬스케어" },
   { ticker: "LLY", name: "일라이릴리", sector: "헬스케어" },
   { ticker: "ABBV", name: "애브비", sector: "헬스케어" },
+  { ticker: "PFE", name: "화이자", sector: "헬스케어" },
+  { ticker: "MRK", name: "머크", sector: "헬스케어" },
   
-  // 소비재 (4)
+  // 소비재 (8)
   { ticker: "COST", name: "코스트코", sector: "소비재" },
   { ticker: "WMT", name: "월마트", sector: "소비재" },
   { ticker: "MCD", name: "맥도날드", sector: "소비재" },
   { ticker: "HD", name: "홈디포", sector: "소비재" },
+  { ticker: "NKE", name: "나이키", sector: "소비재" },
+  { ticker: "SBUX", name: "스타벅스", sector: "소비재" },
+  { ticker: "TGT", name: "타겟", sector: "소비재" },
+  { ticker: "LOW", name: "로우스", sector: "소비재" },
   
-  // 에너지 (2)
+  // 에너지 (4)
   { ticker: "XOM", name: "엑슨모빌", sector: "에너지" },
   { ticker: "CVX", name: "쉐브론", sector: "에너지" },
+  { ticker: "COP", name: "코노코필립스", sector: "에너지" },
+  { ticker: "SLB", name: "슐럼버거", sector: "에너지" },
   
-  // 기타 인기 (5)
+  // 미디어/통신 (4)
   { ticker: "NFLX", name: "넷플릭스", sector: "미디어" },
-  { ticker: "CRM", name: "세일즈포스", sector: "소프트웨어" },
-  { ticker: "ORCL", name: "오라클", sector: "소프트웨어" },
-  { ticker: "ADBE", name: "어도비", sector: "소프트웨어" },
   { ticker: "DIS", name: "디즈니", sector: "미디어" },
+  { ticker: "T", name: "AT&T", sector: "통신" },
+  { ticker: "VZ", name: "버라이즌", sector: "통신" },
+  
+  // 기타 인기 (3)
+  { ticker: "UBER", name: "우버", sector: "플랫폼" },
+  { ticker: "ABNB", name: "에어비앤비", sector: "플랫폼" },
+  { ticker: "COIN", name: "코인베이스", sector: "핀테크" },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -295,16 +331,23 @@ async function calculateSignalsForTicker(ticker: string): Promise<SignalResult |
 
 export async function GET() {
   try {
-    // 모든 종목 병렬 처리 (30개라서 가능)
-    const results = await Promise.all(
-      POPULAR_STOCKS.map(async (stock) => {
-        const signals = await calculateSignalsForTicker(stock.ticker);
-        return {
-          ...stock,
-          signals,
-        };
-      })
-    );
+    // 10개씩 배치 처리 (타임아웃 방지)
+    const batchSize = 10;
+    const results: { ticker: string; name: string; sector: string; signals: SignalResult | null }[] = [];
+
+    for (let i = 0; i < POPULAR_STOCKS.length; i += batchSize) {
+      const batch = POPULAR_STOCKS.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (stock) => {
+          const signals = await calculateSignalsForTicker(stock.ticker);
+          return {
+            ...stock,
+            signals,
+          };
+        })
+      );
+      results.push(...batchResults);
+    }
 
     // 유효한 결과만 필터링
     const validResults = results.filter(r => r.signals !== null);
@@ -317,18 +360,7 @@ export async function GET() {
       r.signals!.valuation === "good"
     );
 
-    // 3개 good (거의 올그린)
-    const threeGreen = validResults.filter(r => {
-      const goodCount = [
-        r.signals!.earning,
-        r.signals!.debt,
-        r.signals!.growth,
-        r.signals!.valuation,
-      ].filter(s => s === "good").length;
-      return goodCount === 3;
-    });
-
-    // 응답
+    // 응답 (거의 올그린 제거)
     const response = {
       allGreen: allGreen.map(r => ({
         ticker: r.ticker,
@@ -336,16 +368,8 @@ export async function GET() {
         sector: r.sector,
         signals: r.signals,
       })),
-      threeGreen: threeGreen.map(r => ({
-        ticker: r.ticker,
-        name: r.name,
-        sector: r.sector,
-        signals: r.signals,
-        notGood: Object.entries(r.signals!)
-          .filter(([_, v]) => v !== "good")
-          .map(([k, _]) => k)[0],
-      })),
       totalChecked: POPULAR_STOCKS.length,
+      validCount: validResults.length,
       lastUpdated: new Date().toISOString(),
     };
 
