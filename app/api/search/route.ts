@@ -16,6 +16,7 @@ const koreanNameMap: { [key: string]: string } = {
   "암드": "AMD", "에이엠디": "AMD", "마이크론": "MU", "팔란티어": "PLTR",
   "팔란": "PLTR", "슈퍼마이크로": "SMCI", "아리스타": "ANET", "몽고DB": "MDB",
   "TSMC": "TSM", "대만반도체": "TSM", "티에스엠씨": "TSM",
+  "웨스턴디지털": "WDC", "웨스턴 디지털": "WDC", "웨디": "WDC",
   
   // 클라우드/소프트웨어
   "스노우플레이크": "SNOW", "세일즈포스": "CRM", "서비스나우": "NOW",
@@ -24,10 +25,13 @@ const koreanNameMap: { [key: string]: string } = {
   
   // AI 인프라
   "코어위브": "CRWV", "버티브": "VRT", "이튼": "ETN",
+  "아이렌": "IREN", "아이 렌": "IREN", "IREN": "IREN",
+  "심보틱": "SYM", "심보틱스": "SYM",
   
   // 에너지/원자력 (SMR)
   "컨스털레이션": "CEG", "비스트라": "VST", "탈렌": "TLN",
   "카메코": "CCJ", "뉴스케일": "SMR",
+  "플러그파워": "PLUG", "플러그 파워": "PLUG", "플러그": "PLUG",
   
   // v9.22: 온다스 추가
   "온다스": "ONDS", "온다스홀딩스": "ONDS",
@@ -44,10 +48,11 @@ const koreanNameMap: { [key: string]: string } = {
   // 추가 인기 종목
   "마라톤디지털": "MARA", "마라톤": "MARA",
   "라이엇": "RIOT", "라이엇플랫폼스": "RIOT",
-  "루멘텀": "LITE", "버티브": "VRT", "이튼": "ETN", "에퀴닉스": "EQIX",
-  "델": "DELL", "클라우드플레어": "NET", "데이터독": "DDOG",
+  "루멘텀": "LITE", "에퀴닉스": "EQIX",
+  "델": "DELL", "클라우드플레어": "NET",
   "빅베어에이아이": "BBAI", "씨쓰리에이아이": "AI",
   "센트러스에너지": "LEU", "센트러스": "LEU",
+  "럼블": "RUM", "럼블Inc": "RUM",
   
   // 금융
   "버크셔": "BRK-B", "JP모건": "JPM", "제이피모건": "JPM",
@@ -55,7 +60,8 @@ const koreanNameMap: { [key: string]: string } = {
   "뱅크오브아메리카": "BAC", "웰스파고": "WFC",
   
   // 헬스케어
-  "유나이티드헬스": "UNH", "일라이릴리": "LLY", "노보노디스크": "NVO",
+  "유나이티드헬스": "UNH", "유나이티드헬스그룹": "UNH", "유나이티드": "UNH", "UNH": "UNH",
+  "일라이릴리": "LLY", "노보노디스크": "NVO",
   "화이자": "PFE", "머크": "MRK", "존슨앤존슨": "JNJ", "애브비": "ABBV",
   
   // 소비재
@@ -71,7 +77,7 @@ const koreanNameMap: { [key: string]: string } = {
   "루시드": "LCID", "리비안": "RIVN", "니오": "NIO", "포드": "F",
   
   // 기타
-  "아이렌": "IREN", "사운드하운드": "SOUN", "로블록스": "RBLX",
+  "사운드하운드": "SOUN", "로블록스": "RBLX",
   "디즈니": "DIS", "보잉": "BA", "쓰리엠": "MMM", "3M": "MMM",
   "코인베이스": "COIN", "마이크로스트래티지": "MSTR",
   "캐터필러": "CAT", "캐터필라": "CAT",

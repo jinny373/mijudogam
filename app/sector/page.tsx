@@ -685,7 +685,12 @@ function ValueChainTab({
               <div className="flex items-center gap-2">
                 <span className="text-lg">{stage.proof.emoji}</span>
                 <div>
-                  <h4 className="font-semibold">{stage.stage}️⃣ {stage.name}</h4>
+                  <h4 className="font-semibold">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs mr-1">
+                      {stage.stage}
+                    </span>
+                    {stage.name}
+                  </h4>
                   <p className="text-xs text-muted-foreground">{stage.description}</p>
                 </div>
               </div>
