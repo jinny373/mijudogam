@@ -274,15 +274,108 @@ export async function GET() {
       ? (treasuryQuote.regularMarketPrice || 0) - treasuryPrices[0]
       : 0;
 
-    // 달러 변화 (1개월)
+    // 달러 변화 (1개월, 3개월, 6개월 + 추세 분석)
     let dollarValue = 103; // 기본값
     let dollarChange1M = 0;
+    let dollarChange3M = 0;
+    let dollarTrendDetail = {
+      direction: "flat" as "weak" | "strong" | "flat",
+      startDate: "",
+      startValue: 0,
+      peakDate: "",
+      peakValue: 0,
+      currentValue: 0,
+      durationWeeks: 0,
+      totalChange: 0,
+      description: "",
+    };
     if (dollarQuote) {
       dollarValue = dollarQuote.regularMarketPrice || 103;
-      const dollarPrices = await getHistoricalPrices(MACRO_TICKERS.dollarIndex, 30);
-      dollarChange1M = dollarPrices.length > 22 
-        ? calculateReturn(dollarValue, dollarPrices[0])
-        : 0;
+      const dollarPrices180 = await getHistoricalPrices(MACRO_TICKERS.dollarIndex, 180);
+      
+      if (dollarPrices180.length > 22) {
+        dollarChange1M = calculateReturn(dollarValue, dollarPrices180[dollarPrices180.length - 22]);
+      }
+      if (dollarPrices180.length > 63) {
+        dollarChange3M = calculateReturn(dollarValue, dollarPrices180[dollarPrices180.length - 63]);
+      }
+      
+      // 추세 전환점 분석 (최근 6개월 데이터)
+      if (dollarPrices180.length > 20) {
+        // 주간 평균으로 추세 분석
+        const weeklyAvg: number[] = [];
+        for (let i = 0; i < dollarPrices180.length; i += 5) {
+          const chunk = dollarPrices180.slice(i, i + 5);
+          weeklyAvg.push(chunk.reduce((s, v) => s + v, 0) / chunk.length);
+        }
+        
+        // 최근 고점/저점 찾기
+        let peakIdx = 0;
+        let troughIdx = 0;
+        let peak = 0;
+        let trough = Infinity;
+        
+        for (let i = 0; i < weeklyAvg.length; i++) {
+          if (weeklyAvg[i] > peak) { peak = weeklyAvg[i]; peakIdx = i; }
+          if (weeklyAvg[i] < trough) { trough = weeklyAvg[i]; troughIdx = i; }
+        }
+        
+        const currentPrice = dollarValue;
+        const totalDays = dollarPrices180.length;
+        
+        // 현재가 고점에서 얼마나 떨어졌는지
+        const fromPeak = ((currentPrice - peak) / peak) * 100;
+        const fromTrough = ((currentPrice - trough) / trough) * 100;
+        
+        // 추세 판단: 고점이 저점보다 먼저 나왔고 현재가 하락 중이면 약세
+        if (peakIdx < weeklyAvg.length - 2 && fromPeak < -2) {
+          // 약세 추세
+          const weeksFromPeak = weeklyAvg.length - peakIdx;
+          const peakDate = new Date();
+          peakDate.setDate(peakDate.getDate() - (weeksFromPeak * 7));
+          
+          dollarTrendDetail = {
+            direction: "weak",
+            startDate: peakDate.toISOString().split('T')[0],
+            startValue: Math.round(peak * 100) / 100,
+            peakDate: peakDate.toISOString().split('T')[0],
+            peakValue: Math.round(peak * 100) / 100,
+            currentValue: Math.round(currentPrice * 100) / 100,
+            durationWeeks: weeksFromPeak,
+            totalChange: Math.round(fromPeak * 100) / 100,
+            description: `${peakDate.getMonth() + 1}월 초 ${Math.round(peak * 10) / 10}에서 하락 시작, ${weeksFromPeak}주째 약세 진행 중 (${Math.round(fromPeak * 10) / 10}%)`,
+          };
+        } else if (troughIdx < weeklyAvg.length - 2 && fromTrough > 2) {
+          // 강세 추세
+          const weeksFromTrough = weeklyAvg.length - troughIdx;
+          const troughDate = new Date();
+          troughDate.setDate(troughDate.getDate() - (weeksFromTrough * 7));
+          
+          dollarTrendDetail = {
+            direction: "strong",
+            startDate: troughDate.toISOString().split('T')[0],
+            startValue: Math.round(trough * 100) / 100,
+            peakDate: "",
+            peakValue: 0,
+            currentValue: Math.round(currentPrice * 100) / 100,
+            durationWeeks: weeksFromTrough,
+            totalChange: Math.round(fromTrough * 100) / 100,
+            description: `${troughDate.getMonth() + 1}월 초 ${Math.round(trough * 10) / 10}에서 반등 시작, ${weeksFromTrough}주째 강세 진행 중 (+${Math.round(fromTrough * 10) / 10}%)`,
+          };
+        } else {
+          dollarTrendDetail = {
+            direction: "flat",
+            startDate: "",
+            startValue: 0,
+            peakDate: "",
+            peakValue: 0,
+            currentValue: Math.round(currentPrice * 100) / 100,
+            durationWeeks: 0,
+            totalChange: 0,
+            description: "뚜렷한 추세 없이 횡보 중",
+          };
+        }
+      }
     }
 
     // VIX
@@ -481,8 +574,10 @@ export async function GET() {
         dollarIndex: {
           value: Math.round(dollarValue * 100) / 100,
           change1M: Math.round(dollarChange1M * 100) / 100,
+          change3M: Math.round(dollarChange3M * 100) / 100,
           trend: dollarTrend.trend,
           trendLabel: dollarTrend.label,
+          trendDetail: dollarTrendDetail,
         },
         vix: {
           value: Math.round(vixValue * 100) / 100,

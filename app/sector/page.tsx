@@ -23,8 +23,20 @@ interface MacroData {
   dollarIndex: {
     value: number;
     change1M: number;
+    change3M: number;
     trend: string;
     trendLabel: string;
+    trendDetail: {
+      direction: string;
+      startDate: string;
+      startValue: number;
+      peakDate: string;
+      peakValue: number;
+      currentValue: number;
+      durationWeeks: number;
+      totalChange: number;
+      description: string;
+    };
   };
   vix: {
     value: number;
@@ -331,23 +343,50 @@ function MacroTab({ data }: { data: MacroData }) {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-2xl font-bold">{data.dollarIndex.value.toFixed(1)}</p>
-            <p className="text-sm text-muted-foreground">
-              월간 {data.dollarIndex.change1M > 0 ? "+" : ""}{data.dollarIndex.change1M.toFixed(1)}%
-            </p>
+            <div className="flex gap-3 mt-1">
+              <p className="text-xs text-muted-foreground">
+                1개월 <span className={data.dollarIndex.change1M >= 0 ? "text-green-600" : "text-red-600"}>
+                  {data.dollarIndex.change1M > 0 ? "+" : ""}{data.dollarIndex.change1M.toFixed(1)}%
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                3개월 <span className={data.dollarIndex.change3M >= 0 ? "text-green-600" : "text-red-600"}>
+                  {data.dollarIndex.change3M > 0 ? "+" : ""}{data.dollarIndex.change3M.toFixed(1)}%
+                </span>
+              </p>
+            </div>
           </div>
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${
             data.dollarIndex.trend === "weak" 
-              ? "bg-green-100 text-green-700" 
+              ? "bg-blue-100 text-blue-700" 
               : data.dollarIndex.trend === "strong"
-              ? "bg-yellow-100 text-yellow-700"
+              ? "bg-red-100 text-red-700"
               : "bg-gray-100 text-gray-700"
           }`}>
             {data.dollarIndex.trendLabel}
           </div>
         </div>
+
+        {/* 추세 상세 */}
+        {data.dollarIndex.trendDetail && data.dollarIndex.trendDetail.description && (
+          <div className={`mt-3 p-2.5 rounded-lg text-xs leading-relaxed ${
+            data.dollarIndex.trendDetail.direction === "weak" 
+              ? "bg-blue-50 text-blue-800" 
+              : data.dollarIndex.trendDetail.direction === "strong"
+              ? "bg-red-50 text-red-800"
+              : "bg-gray-50 text-gray-700"
+          }`}>
+            <span className="font-medium">
+              {data.dollarIndex.trendDetail.direction === "weak" ? "📉 " : 
+               data.dollarIndex.trendDetail.direction === "strong" ? "📈 " : "➡️ "}
+            </span>
+            {data.dollarIndex.trendDetail.description}
+          </div>
+        )}
+
         <p className="text-sm text-muted-foreground mt-2">
           → {data.dollarIndex.trend === "weak" ? "원자재/빅테크에 유리 🟢" : 
-             data.dollarIndex.trend === "strong" ? "내수주에 유리" : "중립"}
+             data.dollarIndex.trend === "strong" ? "내수주에 유리 🔴" : "중립"}
         </p>
       </Card>
 
