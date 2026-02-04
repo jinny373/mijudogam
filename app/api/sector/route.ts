@@ -393,7 +393,16 @@ export async function GET() {
 
     // 매크로 요약
     const rateTrend = getRateTrend(treasuryChange1M);
-    const dollarTrend = getDollarTrend(dollarChange1M);
+    
+    // 달러 트렌드: trendDetail 분석 결과를 우선 사용 (1개월 변화보다 정확)
+    let dollarTrend: { trend: string; label: string };
+    if (dollarTrendDetail.direction === "weak") {
+      dollarTrend = { trend: "weak", label: "약세" };
+    } else if (dollarTrendDetail.direction === "strong") {
+      dollarTrend = { trend: "strong", label: "강세" };
+    } else {
+      dollarTrend = getDollarTrend(dollarChange1M); // fallback
+    }
 
     const macroSummary = generateMacroSummary({
       treasury: { value: treasuryQuote.regularMarketPrice || 0, trend: rateTrend.trend },
