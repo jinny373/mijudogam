@@ -446,41 +446,48 @@ export default function StockDetailPage() {
         const fin = data.financials
         const krSummaryParts = []
         
+        const safeGrowth = Number(fin.revenueGrowth) || 0
+        const safeRoe = Number(fin.roe) || 0
+        const safeDebtRatio = Number(fin.debtRatio) || 0
+        const safePer = Number(fin.per) || 0
+        
         // 성장성
-        if (fin.revenueGrowth > 50) {
-          krSummaryParts.push(`매출이 폭발적으로 성장 중이에요 (+${fin.revenueGrowth?.toFixed(1)}%).`)
-        } else if (fin.revenueGrowth > 15) {
-          krSummaryParts.push(`매출이 빠르게 성장 중이에요 (+${fin.revenueGrowth?.toFixed(1)}%).`)
-        } else if (fin.revenueGrowth > 0) {
-          krSummaryParts.push(`매출이 꾸준히 성장 중이에요 (+${fin.revenueGrowth?.toFixed(1)}%).`)
-        } else if (fin.revenueGrowth < -10) {
-          krSummaryParts.push(`매출이 감소하고 있어요 (${fin.revenueGrowth?.toFixed(1)}%).`)
+        if (safeGrowth > 50) {
+          krSummaryParts.push(`매출이 폭발적으로 성장 중이에요 (+${safeGrowth.toFixed(1)}%).`)
+        } else if (safeGrowth > 15) {
+          krSummaryParts.push(`매출이 빠르게 성장 중이에요 (+${safeGrowth.toFixed(1)}%).`)
+        } else if (safeGrowth > 0) {
+          krSummaryParts.push(`매출이 꾸준히 성장 중이에요 (+${safeGrowth.toFixed(1)}%).`)
+        } else if (safeGrowth < -10) {
+          krSummaryParts.push(`매출이 감소하고 있어요 (${safeGrowth.toFixed(1)}%).`)
         } else {
           krSummaryParts.push("매출 성장이 정체 상태예요.")
         }
         
         // 수익성 + 재무
-        if (fin.roe > 15 && fin.debtRatio < 0.5) {
+        if (safeRoe > 15 && safeDebtRatio < 0.5) {
           krSummaryParts.push("돈도 잘 벌고 빚도 적어서 재무 상태가 튼튼해요.")
-        } else if (fin.roe > 15) {
+        } else if (safeRoe > 15) {
           krSummaryParts.push("돈은 잘 버는 편이에요.")
-        } else if (fin.debtRatio < 0.3) {
+        } else if (safeDebtRatio < 0.3) {
           krSummaryParts.push("자본 대비 빚 부담이 적어서 재무가 안정적이에요.")
-        } else if (fin.debtRatio > 1) {
+        } else if (safeDebtRatio > 1) {
           krSummaryParts.push("빚이 많은 편이라 재무 건전성에 주의가 필요해요.")
         } else {
           krSummaryParts.push("재무 상태는 평균적인 수준이에요.")
         }
         
         // 밸류에이션
-        if (fin.per < 10) {
+        if (safePer > 0 && safePer < 10) {
           krSummaryParts.push("PER이 매우 낮아서 저평가 매력이 있을 수 있어요.")
-        } else if (fin.per < 15) {
+        } else if (safePer > 0 && safePer < 15) {
           krSummaryParts.push("PER이 낮은 편이라 가격 매력이 있어요.")
-        } else if (fin.per > 30) {
+        } else if (safePer > 30) {
           krSummaryParts.push("PER이 높은 편이라 성장 기대가 반영된 가격이에요.")
-        } else {
+        } else if (safePer > 0) {
           krSummaryParts.push("PER은 적정 수준이에요.")
+        } else {
+          krSummaryParts.push("현재 PER 데이터를 확인할 수 없어요.")
         }
         
         const krAiSummary = krSummaryParts.join(" ")
@@ -667,21 +674,6 @@ export default function StockDetailPage() {
             <p className="text-primary-foreground/80 text-sm font-medium mb-1">📌 이 종목을 한마디로?</p>
             <p className="text-primary-foreground text-lg font-semibold leading-relaxed">
               {stockData.aiSummary}
-            </p>
-          </Card>
-        )}
-
-        {/* 한국 주식 - 데이터 출처 표시 */}
-        {stockData.isKorean && (
-          <Card className="bg-blue-50 dark:bg-blue-950 p-4 rounded-2xl border border-blue-200 dark:border-blue-800">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">🇰🇷</span>
-              <p className="text-blue-800 dark:text-blue-200 text-sm font-semibold">한국 주식</p>
-            </div>
-            <p className="text-blue-700 dark:text-blue-300 text-sm leading-relaxed">
-              재무 데이터: <span className="font-medium">{stockData.dataSource || "DART"}</span> ({stockData.dartYear}년)
-              {" · "}주가: Yahoo Finance
-              {" · "}벤치마크: {stockData.benchmarkName || "KOSPI"}
             </p>
           </Card>
         )}
@@ -942,8 +934,21 @@ export default function StockDetailPage() {
             )}
           </Card>
           
-          {/* Data Source Notice - 강화된 면책 */}
-          {stockData.dataSource && (
+          {/* Data Source Notice */}
+          {stockData.isKorean ? (
+            <div className="text-center mt-4 space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                <span className="text-sm">🇰🇷</span>
+                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">한국 주식</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                재무 데이터: {stockData.dataSource || "DART"} ({stockData.dartYear}년) · 주가: Yahoo Finance · 벤치마크: {stockData.benchmarkName || "KOSPI"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                ⚠️ 본 자료는 투자 참고용이며, 투자 판단의 책임은 투자자에게 있습니다.
+              </p>
+            </div>
+          ) : stockData.dataSource && typeof stockData.dataSource === 'object' ? (
             <div className="text-center mt-4 space-y-1">
               <p className="text-xs text-muted-foreground">
                 📊 {stockData.dataSource.provider} · {stockData.dataSource.lastUpdated}
@@ -957,7 +962,7 @@ export default function StockDetailPage() {
                 </p>
               )}
             </div>
-          )}
+          ) : null}
         </section>
       </main>
     </div>

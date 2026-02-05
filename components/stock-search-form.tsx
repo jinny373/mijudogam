@@ -646,6 +646,7 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [recentStocks, setRecentStocks] = useState<RecentStock[]>([])
+  const [showKrBanner, setShowKrBanner] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -657,9 +658,17 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
     }
   }, [autoFocus])
 
-  // 최근 본 종목 불러오기 (클라이언트에서만)
+  // 최근 본 종목 불러오기 + 국내주식 배너 노출 체크
   useEffect(() => {
     setRecentStocks(getRecentStocks())
+    // 배너: 3번 보면 더 이상 안 보여줌
+    try {
+      const bannerCount = Number(localStorage.getItem("mijudogam_kr_banner_count") || "0")
+      if (bannerCount < 3) {
+        setShowKrBanner(true)
+        localStorage.setItem("mijudogam_kr_banner_count", String(bannerCount + 1))
+      }
+    } catch { /* 무시 */ }
   }, [])
 
   // 검색 API 호출 (디바운스)
@@ -968,6 +977,21 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
           </div>
         )}
       </form>
+
+      {/* 국내주식 검색 가능 배너 */}
+      {showKrBanner && (
+        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 text-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <span>🇰🇷</span>
+          <span className="text-blue-700 dark:text-blue-300 font-medium">이제 국내 주식도 검색할 수 있어요!</span>
+          <button
+            onClick={() => setShowKrBanner(false)}
+            className="ml-1 text-blue-400 hover:text-blue-600 dark:hover:text-blue-200 transition-colors"
+            aria-label="닫기"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 최근 본 종목 */}
       {recentStocks.length > 0 && (
