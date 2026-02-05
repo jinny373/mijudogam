@@ -36,7 +36,7 @@ function HomeContent() {
         {/* Text Content */}
         <div className="text-center mb-8 space-y-2">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-balance">
-            어떤 미국주식이 궁금한가요?
+            어떤 주식이 궁금하세요?
           </h2>
           <p className="text-muted-foreground text-base sm:text-lg">
             재무제표를 쉽게 해석해드릴게요
