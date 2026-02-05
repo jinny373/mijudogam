@@ -151,6 +151,51 @@ const krDirectMap: Record<string, { code: string; market: "KS" | "KQ" }> = {
   "메리츠": { code: "138040", market: "KS" },
   "yg엔터": { code: "122870", market: "KQ" },
   "yg": { code: "122870", market: "KQ" },
+  // v9.23: 추가 한국 주식
+  "동원시스템즈": { code: "014820", market: "KS" },
+  "동원": { code: "014820", market: "KS" },
+  "동원f&b": { code: "049770", market: "KS" },
+  "동원산업": { code: "006040", market: "KS" },
+  "cj제일제당": { code: "097950", market: "KS" },
+  "cj": { code: "001040", market: "KS" },
+  "cj대한통운": { code: "000120", market: "KS" },
+  "오리온": { code: "271560", market: "KS" },
+  "농심": { code: "004370", market: "KS" },
+  "hy": { code: "005440", market: "KS" },
+  "롯데케미칼": { code: "011170", market: "KS" },
+  "롯데칠성": { code: "005300", market: "KS" },
+  "롯데": { code: "004990", market: "KS" },
+  "gs건설": { code: "006360", market: "KS" },
+  "gs리테일": { code: "007070", market: "KS" },
+  "gs": { code: "078930", market: "KS" },
+  "금호타이어": { code: "073240", market: "KS" },
+  "넥센타이어": { code: "002350", market: "KS" },
+  "한국타이어": { code: "161390", market: "KS" },
+  "한온시스템": { code: "018880", market: "KS" },
+  "만도": { code: "204320", market: "KS" },
+  "현대위아": { code: "011210", market: "KS" },
+  "s-oil": { code: "010950", market: "KS" },
+  "에쓰오일": { code: "010950", market: "KS" },
+  "hd현대": { code: "267250", market: "KS" },
+  "sk바이오팜": { code: "326030", market: "KS" },
+  "sk바이오사이언스": { code: "302440", market: "KS" },
+  "유한양행": { code: "000100", market: "KS" },
+  "녹십자": { code: "006280", market: "KS" },
+  "종근당": { code: "185750", market: "KS" },
+  "한미약품": { code: "128940", market: "KS" },
+  "일진머티리얼즈": { code: "020150", market: "KS" },
+  "db하이텍": { code: "000990", market: "KS" },
+  "리노공업": { code: "058470", market: "KQ" },
+  "이수페타시스": { code: "007660", market: "KS" },
+  "파크시스템스": { code: "140860", market: "KQ" },
+  "레인보우로보틱스": { code: "277810", market: "KQ" },
+  "덕산네오룩스": { code: "213420", market: "KQ" },
+  "씨에스윈드": { code: "112610", market: "KS" },
+  "sk아이이테크놀로지": { code: "361610", market: "KS" },
+  "sk아이이": { code: "361610", market: "KS" },
+  "skiet": { code: "361610", market: "KS" },
+  "삼성에스디에스": { code: "018260", market: "KS" },
+  "삼성sds": { code: "018260", market: "KS" },
 }
 
 function resolveKrTicker(input: string): string | null {
@@ -281,6 +326,8 @@ const koreanStockMap: Record<string, string> = {
   "아이온큐": "IONQ",
   "리게티컴퓨팅": "RGTI",
   "디웨이브": "QBTS",
+  "퀀텀컴퓨팅": "QUBT",
+  "퀀텀 컴퓨팅": "QUBT",
   
   // ===== 핀테크/암호화폐 =====
   "코인베이스": "COIN",
@@ -666,6 +713,12 @@ const searchAliases: Record<string, string> = {
   "레드와이어": "RDW",
   "사이퍼": "CIFR",
   "싸이퍼": "CIFR",
+  
+  // v9.23: 양자컴퓨터 별칭
+  "퀀텀": "QUBT",
+  "양자컴퓨터": "IONQ",
+  "양자컴퓨팅": "IONQ",
+  "양자": "IONQ",
 }
 
 // 티커 → 완전형 이름 역매핑 (유사 종목 추천용)
@@ -911,6 +964,13 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
     const trimmed = query.trim()
     if (/^\d{6}$/.test(trimmed)) {
       handleSelectStock(trimmed)
+      return
+    }
+
+    // v9.23: 부분일치 — 정확한 매핑이 없으면 유사 종목 중 첫 번째로 이동
+    const similar = findSimilarStocks(query.trim())
+    if (similar.length > 0) {
+      handleSelectStock(similar[0].ticker, similar[0].name)
       return
     }
 

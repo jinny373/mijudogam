@@ -33,6 +33,8 @@ const koreanStockMap: Record<string, string> = {
   "테라울프": "WULF", "코어사이언티픽": "CORZ", "아이리스에너지": "IREN",
   // 양자컴퓨터
   "아이온큐": "IONQ", "리게티": "RGTI", "디웨이브": "QBTS",
+  "퀀텀컴퓨팅": "QUBT", "퀀텀 컴퓨팅": "QUBT", "퀀텀": "QUBT",
+  "양자컴퓨터": "IONQ", "양자컴퓨팅": "IONQ",
   // 원자력/SMR
   "뉴스케일": "SMR", "오클로": "OKLO", "컨스털레이션": "CEG", "비스트라": "VST",
   "센트러스에너지": "LEU", "카메코": "CCJ",
@@ -145,6 +147,32 @@ const krDirectMap: Record<string, { code: string; market: "KS" | "KQ" }> = {
   "휴젤": { code: "145020", market: "KQ" },
   "파두": { code: "440110", market: "KQ" },
   "fadu": { code: "440110", market: "KQ" },
+  // v9.23: 추가 한국 주식
+  "동원시스템즈": { code: "014820", market: "KS" },
+  "동원": { code: "014820", market: "KS" },
+  "동원f&b": { code: "049770", market: "KS" },
+  "동원산업": { code: "006040", market: "KS" },
+  "cj제일제당": { code: "097950", market: "KS" },
+  "cj": { code: "001040", market: "KS" },
+  "오리온": { code: "271560", market: "KS" },
+  "농심": { code: "004370", market: "KS" },
+  "롯데": { code: "004990", market: "KS" },
+  "gs": { code: "078930", market: "KS" },
+  "한온시스템": { code: "018880", market: "KS" },
+  "만도": { code: "204320", market: "KS" },
+  "s-oil": { code: "010950", market: "KS" },
+  "에쓰오일": { code: "010950", market: "KS" },
+  "hd현대": { code: "267250", market: "KS" },
+  "sk바이오팜": { code: "326030", market: "KS" },
+  "유한양행": { code: "000100", market: "KS" },
+  "녹십자": { code: "006280", market: "KS" },
+  "한미약품": { code: "128940", market: "KS" },
+  "db하이텍": { code: "000990", market: "KS" },
+  "이수페타시스": { code: "007660", market: "KS" },
+  "파크시스템스": { code: "140860", market: "KQ" },
+  "레인보우로보틱스": { code: "277810", market: "KQ" },
+  "씨에스윈드": { code: "112610", market: "KS" },
+  "삼성sds": { code: "018260", market: "KS" },
 }
 
 function resolveKrTicker(input: string): string | null {
@@ -311,6 +339,16 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     if (/^\d{6}$/.test(trimmed)) {
       handleSelectStock(trimmed)
       return
+    }
+
+    // 5.5 v9.23: 부분일치 — koreanStockMap에서 포함 검색
+    const normalizedQ = query.trim().toLowerCase().replace(/\s/g, '')
+    for (const [korean, ticker] of Object.entries(koreanStockMap)) {
+      const normalizedK = korean.toLowerCase().replace(/\s/g, '')
+      if (normalizedK.includes(normalizedQ) || normalizedQ.includes(normalizedK)) {
+        handleSelectStock(ticker)
+        return
+      }
     }
 
     // 6. 영문 티커로 바로 이동
