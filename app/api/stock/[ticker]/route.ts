@@ -372,6 +372,8 @@ export async function GET(
       .slice(-8); // 최근 8분기
 
     // 기본 정보
+    const isETF = quote.quoteType === "ETF" || 
+      /^(SPY|QQQ|IWM|DIA|VOO|VTI|ARKK|ARKG|ARKW|SOXX|SMH|XLF|XLE|XLK|XLV|XBI|GLD|SLV|USO|UNG|TLT|HYG|LQD|IBIT|GBTC|ETHE|BITO|TQQQ|SQQQ|SOXL|SOXS|UPRO|SPXU|UVXY|VXX|EEM|EFA|FXI|KWEB|MCHI|INDA|EWJ|EWZ|GDX|GDXJ|SIL|COPX|CPER|REMX|URA|URNM|JETS|DFEN|ITA|PBW|TAN|ICLN|LIT|DRIV|BOTZ|ROBO|HACK|WCLD|CLOU|AIQ|IRBO|SCHD|JEPI|JEPQ|DIVO)$/i.test(symbol);
     const basicInfo = {
       name: quote.shortName || quote.longName || symbol,
       ticker: symbol,
@@ -379,8 +381,8 @@ export async function GET(
       price: quote.regularMarketPrice || 0,
       change: quote.regularMarketChange || 0,
       changePercent: quote.regularMarketChangePercent || 0,
-      sector: profile?.sector || "Technology",
-      industry: profile?.industry || "",
+      sector: isETF ? "ETF" : (profile?.sector || "Technology"),
+      industry: isETF ? (quote.shortName || "ETF") : (profile?.industry || ""),
     };
 
     // 재무 지표 추출
@@ -509,7 +511,7 @@ export async function GET(
     // 매출 없음 판단: 실제로 매출이 0인지 확인
     // financialData.totalRevenue도 확인해서 fallback
     const actualRevenue = revenueCurrentYear || financialData?.totalRevenue || 0;
-    isPreRevenueCompany = actualRevenue === 0;
+    isPreRevenueCompany = !isETF && actualRevenue === 0; // ETF는 매출 없음 판단 제외
 
     // 📈 분기별 추이 데이터 (최근 4분기)
     // v9.22: incomeQuarterly가 비어있으면 fundamentalsTimeSeries 사용
@@ -1295,6 +1297,19 @@ export async function GET(
 
     // AI 요약 생성
     const generateAISummary = () => {
+      // ETF는 별도 요약
+      if (isETF) {
+        const etfName = quote.shortName || quote.longName || symbol;
+        const nav = quote.regularMarketPrice || 0;
+        const ytdReturn = quote.ytdReturn;
+        let summary = `${etfName}은 ETF(상장지수펀드)예요.`;
+        if (ytdReturn) {
+          summary += ` 올해 수익률은 ${(ytdReturn * 100).toFixed(1)}%예요.`;
+        }
+        summary += " 개별 기업이 아니라 여러 자산에 분산 투자하는 펀드이므로, 재무제표 기반 분석은 적용되지 않아요.";
+        return summary;
+      }
+
       const sentences = [];
       
       // 1문장: 성장성

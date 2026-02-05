@@ -442,6 +442,49 @@ export default function StockDetailPage() {
           })
         }
 
+        // 한국 주식용 AI 한마디 생성
+        const fin = data.financials
+        const krSummaryParts = []
+        
+        // 성장성
+        if (fin.revenueGrowth > 50) {
+          krSummaryParts.push(`매출이 폭발적으로 성장 중이에요 (+${fin.revenueGrowth?.toFixed(1)}%).`)
+        } else if (fin.revenueGrowth > 15) {
+          krSummaryParts.push(`매출이 빠르게 성장 중이에요 (+${fin.revenueGrowth?.toFixed(1)}%).`)
+        } else if (fin.revenueGrowth > 0) {
+          krSummaryParts.push(`매출이 꾸준히 성장 중이에요 (+${fin.revenueGrowth?.toFixed(1)}%).`)
+        } else if (fin.revenueGrowth < -10) {
+          krSummaryParts.push(`매출이 감소하고 있어요 (${fin.revenueGrowth?.toFixed(1)}%).`)
+        } else {
+          krSummaryParts.push("매출 성장이 정체 상태예요.")
+        }
+        
+        // 수익성 + 재무
+        if (fin.roe > 15 && fin.debtRatio < 0.5) {
+          krSummaryParts.push("돈도 잘 벌고 빚도 적어서 재무 상태가 튼튼해요.")
+        } else if (fin.roe > 15) {
+          krSummaryParts.push("돈은 잘 버는 편이에요.")
+        } else if (fin.debtRatio < 0.3) {
+          krSummaryParts.push("자본 대비 빚 부담이 적어서 재무가 안정적이에요.")
+        } else if (fin.debtRatio > 1) {
+          krSummaryParts.push("빚이 많은 편이라 재무 건전성에 주의가 필요해요.")
+        } else {
+          krSummaryParts.push("재무 상태는 평균적인 수준이에요.")
+        }
+        
+        // 밸류에이션
+        if (fin.per < 10) {
+          krSummaryParts.push("PER이 매우 낮아서 저평가 매력이 있을 수 있어요.")
+        } else if (fin.per < 15) {
+          krSummaryParts.push("PER이 낮은 편이라 가격 매력이 있어요.")
+        } else if (fin.per > 30) {
+          krSummaryParts.push("PER이 높은 편이라 성장 기대가 반영된 가격이에요.")
+        } else {
+          krSummaryParts.push("PER은 적정 수준이에요.")
+        }
+        
+        const krAiSummary = krSummaryParts.join(" ")
+
         const converted = {
           ...data,
           name: data.basicInfo.name,
@@ -457,6 +500,7 @@ export default function StockDetailPage() {
           signals: data.signals,
           signalDetails: data.signalDetails,
           metrics: krMetrics,
+          aiSummary: krAiSummary,
           // 한국 전용 필드
           isKorean: true,
           benchmarkName: data.benchmarkName || "KOSPI",
@@ -617,8 +661,8 @@ export default function StockDetailPage() {
           </div>
         </section>
 
-        {/* AI Summary Card - 미국 주식만 */}
-        {!stockData.isKorean && stockData.aiSummary && (
+        {/* AI Summary Card - 한국/미국 모두 */}
+        {stockData.aiSummary && (
           <Card className="bg-primary p-5 rounded-2xl border-0 shadow-lg">
             <p className="text-primary-foreground/80 text-sm font-medium mb-1">📌 이 종목을 한마디로?</p>
             <p className="text-primary-foreground text-lg font-semibold leading-relaxed">
