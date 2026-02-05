@@ -228,7 +228,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ results: [] });
     }
 
+    // URL 인코딩된 한글 디코딩
+    try {
+      query = decodeURIComponent(query);
+    } catch (e) {
+      // 이미 디코딩된 경우 무시
+    }
+
+    console.log("[search] raw query:", searchParams.get("q"), "→ decoded:", query);
+
     const normalizedQuery = query.replace(/\s/g, "").toLowerCase();
+    
+    console.log("[search] normalized:", normalizedQuery, "krMap has key:", normalizedQuery in krStockSearchMap);
     
     // ═══════════════════════════════════════════════════════════════
     // 1. 한국 주식 매칭 (정확 + 부분)
@@ -292,29 +303,37 @@ export async function GET(request: NextRequest) {
 
     const searchQuery = mappedTicker || query;
 
-    // Yahoo Finance 검색 (미국 주식)
-    const searchResults = await yahooFinance.search(searchQuery, {
-      quotesCount: 8,
-      newsCount: 0,
-    });
+    // Yahoo Finance 검색 (미국 주식) - 에러 시에도 한국 결과는 보존
+    let usStocks: { ticker: string; name: string; exchange: string; type: string; isKorean: boolean }[] = [];
+    try {
+      const searchResults = await yahooFinance.search(searchQuery, {
+        quotesCount: 8,
+        newsCount: 0,
+      });
 
-    const usStocks = searchResults.quotes
-      .filter((item: any) => 
-        item.quoteType === "EQUITY" || 
-        item.quoteType === "ETF"
-      )
-      .map((item: any) => ({
-        ticker: item.symbol,
-        name: item.shortname || item.longname || item.symbol,
-        exchange: item.exchange || "",
-        type: item.quoteType,
-        isKorean: false,
-      }));
+      usStocks = searchResults.quotes
+        .filter((item: any) => 
+          item.quoteType === "EQUITY" || 
+          item.quoteType === "ETF"
+        )
+        .map((item: any) => ({
+          ticker: item.symbol,
+          name: item.shortname || item.longname || item.symbol,
+          exchange: item.exchange || "",
+          type: item.quoteType,
+          isKorean: false,
+        }));
+    } catch (yahooError) {
+      console.error("Yahoo Finance search error (한국 결과는 유지):", yahooError);
+      // Yahoo 에러 시에도 한국 결과는 유지
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // 3. 한국 + 미국 합쳐서 반환 (한국 먼저)
     // ═══════════════════════════════════════════════════════════════
     const allResults = [...krResults, ...usStocks];
+    
+    console.log("[search] krResults:", krResults.length, "usStocks:", usStocks.length, "total:", allResults.length);
 
     return NextResponse.json({ 
       results: allResults,
