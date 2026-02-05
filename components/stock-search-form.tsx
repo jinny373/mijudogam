@@ -48,23 +48,122 @@ const saveRecentStock = (ticker: string, name: string) => {
   }
 }
 
-// ===== 한국 주식 키워드 (미지원 안내용) =====
-const koreanStockKeywords = [
-  '삼성', '하이닉스', '현대', 'LG', '네이버', '카카오',
-  '셀트리온', '삼바', 'SK', '포스코', '한화', '두산',
-  '고려아연', '동성케미컬', '한올', '에스피지', '기아',
-  '엔씨소프트', '크래프톤', '넥슨', '펄어비스', '카카오게임즈',
-  '쿠팡', '배달의민족', '토스', '야놀자', '직방',
-  '신한', '국민은행', 'KB', '우리은행', '하나은행'
-]
-
-const isKoreanStock = (query: string): boolean => {
-  return koreanStockKeywords.some(keyword =>
-    query.toLowerCase().includes(keyword.toLowerCase())
-  )
+// ===== 한국 주식 한글 → 종목코드 (직접 입력 대응) =====
+const krDirectMap: Record<string, { code: string; market: "KS" | "KQ" }> = {
+  "삼성전자": { code: "005930", market: "KS" },
+  "삼전": { code: "005930", market: "KS" },
+  "삼성": { code: "005930", market: "KS" },
+  "sk하이닉스": { code: "000660", market: "KS" },
+  "하이닉스": { code: "000660", market: "KS" },
+  "현대자동차": { code: "005380", market: "KS" },
+  "현대차": { code: "005380", market: "KS" },
+  "현차": { code: "005380", market: "KS" },
+  "기아": { code: "000270", market: "KS" },
+  "네이버": { code: "035420", market: "KS" },
+  "naver": { code: "035420", market: "KS" },
+  "카카오": { code: "035720", market: "KS" },
+  "카톡": { code: "035720", market: "KS" },
+  "lg에너지솔루션": { code: "373220", market: "KS" },
+  "lg엔솔": { code: "373220", market: "KS" },
+  "삼성sdi": { code: "006400", market: "KS" },
+  "lg화학": { code: "051910", market: "KS" },
+  "셀트리온": { code: "068270", market: "KS" },
+  "포스코": { code: "005490", market: "KS" },
+  "한국전력": { code: "015760", market: "KS" },
+  "한전": { code: "015760", market: "KS" },
+  "kb금융": { code: "105560", market: "KS" },
+  "국민은행": { code: "105560", market: "KS" },
+  "신한지주": { code: "055550", market: "KS" },
+  "신한은행": { code: "055550", market: "KS" },
+  "하나금융": { code: "086790", market: "KS" },
+  "하나은행": { code: "086790", market: "KS" },
+  "우리금융": { code: "316140", market: "KS" },
+  "우리은행": { code: "316140", market: "KS" },
+  "크래프톤": { code: "259960", market: "KS" },
+  "하이브": { code: "352820", market: "KS" },
+  "엔씨소프트": { code: "036570", market: "KS" },
+  "엔씨": { code: "036570", market: "KS" },
+  "넷마블": { code: "251270", market: "KS" },
+  "대한항공": { code: "003490", market: "KS" },
+  "삼성물산": { code: "028260", market: "KS" },
+  "현대모비스": { code: "012330", market: "KS" },
+  "lg전자": { code: "066570", market: "KS" },
+  "삼성전기": { code: "009150", market: "KS" },
+  "삼성생명": { code: "032830", market: "KS" },
+  "삼성화재": { code: "000810", market: "KS" },
+  "삼성중공업": { code: "010140", market: "KS" },
+  "현대건설": { code: "000720", market: "KS" },
+  "현대제철": { code: "004020", market: "KS" },
+  "고려아연": { code: "010130", market: "KS" },
+  "kt": { code: "030200", market: "KS" },
+  "sk텔레콤": { code: "017670", market: "KS" },
+  "skt": { code: "017670", market: "KS" },
+  "kt&g": { code: "033780", market: "KS" },
+  "한미반도체": { code: "042700", market: "KS" },
+  "hd현대일렉트릭": { code: "267260", market: "KS" },
+  "현대일렉트릭": { code: "267260", market: "KS" },
+  "hd현대중공업": { code: "329180", market: "KS" },
+  "현대중공업": { code: "329180", market: "KS" },
+  "두산에너빌리티": { code: "034020", market: "KS" },
+  "hmm": { code: "011200", market: "KS" },
+  "아모레퍼시픽": { code: "090430", market: "KS" },
+  "코웨이": { code: "021240", market: "KS" },
+  "카카오뱅크": { code: "323410", market: "KS" },
+  "카카오페이": { code: "377300", market: "KS" },
+  "포스코퓨처엠": { code: "003670", market: "KS" },
+  "sk이노베이션": { code: "096770", market: "KS" },
+  "sk": { code: "034730", market: "KS" },
+  "lg": { code: "003550", market: "KS" },
+  "에코프로비엠": { code: "247540", market: "KQ" },
+  "에코프로": { code: "086520", market: "KQ" },
+  "알테오젠": { code: "196170", market: "KQ" },
+  "펄어비스": { code: "263750", market: "KQ" },
+  "카카오게임즈": { code: "293490", market: "KQ" },
+  "jyp": { code: "035900", market: "KQ" },
+  "에스엠": { code: "041510", market: "KQ" },
+  "sm": { code: "041510", market: "KQ" },
+  "위메이드": { code: "112040", market: "KQ" },
+  "hpsp": { code: "403870", market: "KQ" },
+  "리노공업": { code: "058470", market: "KQ" },
+  "루닛": { code: "328130", market: "KQ" },
+  "주성엔지니어링": { code: "036930", market: "KQ" },
+  "주성": { code: "036930", market: "KQ" },
+  "f&f": { code: "383220", market: "KQ" },
+  "솔브레인": { code: "357780", market: "KQ" },
+  "아프리카tv": { code: "067160", market: "KQ" },
+  "숲": { code: "067160", market: "KQ" },
+  "soop": { code: "067160", market: "KQ" },
+  "휴젤": { code: "145020", market: "KQ" },
+  "파두": { code: "440110", market: "KQ" },
+  "한화에어로스페이스": { code: "012450", market: "KS" },
+  "한화에어로": { code: "012450", market: "KS" },
+  "한화오션": { code: "042660", market: "KS" },
+  "한화시스템": { code: "272210", market: "KS" },
+  "한화솔루션": { code: "009830", market: "KS" },
+  "한화": { code: "000880", market: "KS" },
+  "현대로템": { code: "064350", market: "KS" },
+  "두산로보틱스": { code: "454910", market: "KS" },
+  "삼성바이오로직스": { code: "207940", market: "KS" },
+  "삼바": { code: "207940", market: "KS" },
+  "한국항공우주": { code: "047810", market: "KS" },
+  "포스코dx": { code: "022100", market: "KS" },
+  "메리츠금융": { code: "138040", market: "KS" },
+  "메리츠": { code: "138040", market: "KS" },
+  "yg엔터": { code: "122870", market: "KQ" },
+  "yg": { code: "122870", market: "KQ" },
 }
 
-// ===== v9.20: 한글 매핑 (완전형 이름 기준, 중복 제거) =====
+function resolveKrTicker(input: string): string | null {
+  const normalized = input.replace(/\s/g, "").toLowerCase()
+  const match = krDirectMap[normalized]
+  if (match) return match.code
+  for (const [key, val] of Object.entries(krDirectMap)) {
+    if (key.includes(normalized) || normalized.includes(key)) {
+      return val.code
+    }
+  }
+  return null
+}
 // 규칙: 하나의 티커에 하나의 완전형 이름만 매핑
 // 줄임말/별칭은 searchAliases에서 처리
 const koreanStockMap: Record<string, string> = {
@@ -787,7 +886,14 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
 
     if (!query.trim()) return
 
-    // 한글 매핑 체크
+    // 한국 주식 한글 → 숫자 종목코드 매핑 (삼성전자 → 005930)
+    const krTicker = resolveKrTicker(query.trim())
+    if (krTicker) {
+      handleSelectStock(krTicker, query.trim())
+      return
+    }
+
+    // 미국 주식 한글 매핑 체크
     const mappedTicker = koreanStockMap[query.trim()]
     if (mappedTicker) {
       handleSelectStock(mappedTicker)
@@ -798,6 +904,13 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
     const aliasTicker = searchAliases[query.trim()]
     if (aliasTicker) {
       handleSelectStock(aliasTicker)
+      return
+    }
+
+    // 6자리 숫자 → 한국 주식 코드로 간주 (숫자코드만 전달)
+    const trimmed = query.trim()
+    if (/^\d{6}$/.test(trimmed)) {
+      handleSelectStock(trimmed)
       return
     }
 
@@ -934,20 +1047,8 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
               검색 결과가 없어요
             </p>
             
-            {/* v9.20: 한국 주식 검색 시 안내 */}
-            {isKoreanStock(query) && (
-              <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
-                <p className="text-sm text-orange-600 dark:text-orange-400 text-center">
-                  ⚠️ 미주도감은 <strong>미국 주식</strong>만 지원해요
-                </p>
-                <p className="text-xs text-orange-500 dark:text-orange-500 text-center mt-1">
-                  한국 주식은 네이버 증권, 키움증권 등을 이용해주세요
-                </p>
-              </div>
-            )}
-
-            {/* v9.20: 유사 종목 추천 */}
-            {!isKoreanStock(query) && similarStocks.length > 0 && (
+            {/* 유사 종목 추천 */}
+            {similarStocks.length > 0 && (
               <div className="mt-3">
                 <p className="text-xs text-muted-foreground text-center mb-2">
                   🔍 이 종목을 찾으셨나요?
@@ -968,10 +1069,10 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
               </div>
             )}
 
-            {/* 기본 안내 (한국 주식도 아니고 유사 종목도 없을 때) */}
-            {!isKoreanStock(query) && similarStocks.length === 0 && (
+            {/* 기본 안내 */}
+            {similarStocks.length === 0 && (
               <p className="text-xs text-muted-foreground text-center mt-2">
-                💡 영문 티커로 검색해보세요 (예: NVDA, AAPL)
+                💡 영문 티커(NVDA, AAPL) 또는 종목코드(005930)로 검색해보세요
               </p>
             )}
           </div>

@@ -150,10 +150,10 @@ const krDirectMap: Record<string, { code: string; market: "KS" | "KQ" }> = {
 function resolveKrTicker(input: string): string | null {
   const normalized = input.replace(/\s/g, "").toLowerCase()
   const match = krDirectMap[normalized]
-  if (match) return `${match.code}.${match.market}`
+  if (match) return match.code
   for (const [key, val] of Object.entries(krDirectMap)) {
     if (key.includes(normalized) || normalized.includes(key)) {
-      return `${val.code}.${val.market}`
+      return val.code
     }
   }
   return null
@@ -306,7 +306,14 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
       return
     }
 
-    // 5. 영문 티커로 바로 이동
+    // 5. 6자리 숫자 → 한국 주식 종목코드
+    const trimmed = query.trim()
+    if (/^\d{6}$/.test(trimmed)) {
+      handleSelectStock(trimmed)
+      return
+    }
+
+    // 6. 영문 티커로 바로 이동
     handleSelectStock(query.toUpperCase().trim())
   }
 

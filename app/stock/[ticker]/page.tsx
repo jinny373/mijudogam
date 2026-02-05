@@ -40,23 +40,6 @@ const statusColors = {
   red: { bg: "bg-[#EF4444]", text: "text-[#EF4444]", light: "bg-[#EF4444]/10" },
 }
 
-// ===== v9.20: 한국 주식 키워드 =====
-const koreanStockKeywords = [
-  '삼성', '하이닉스', '현대', 'LG', '네이버', '카카오',
-  '셀트리온', '삼바', 'SK', '포스코', '한화', '두산',
-  '고려아연', '동성케미컬', '한올', '에스피지', '기아',
-  '엔씨소프트', '크래프톤', '넥슨', '펄어비스', '카카오게임즈',
-  '쿠팡', '배달의민족', '토스', '야놀자', '직방',
-  '신한', '국민은행', 'KB', '우리은행', '하나은행'
-]
-
-const isKoreanStock = (query: string): boolean => {
-  const decoded = decodeURIComponent(query)
-  return koreanStockKeywords.some(keyword =>
-    decoded.toLowerCase().includes(keyword.toLowerCase())
-  )
-}
-
 // ===== v9.20: 유사 종목 추천용 매핑 =====
 const suggestionsMap: Record<string, { ticker: string; name: string }[]> = {
   // 검색 실패가 많았던 종목들
@@ -216,9 +199,6 @@ function ErrorState({ message, ticker, onRetry }: { message: string; ticker?: st
   const decodedTicker = ticker ? decodeURIComponent(ticker) : null
   const upperTicker = decodedTicker?.toUpperCase()
   
-  // v9.20: 한국 주식 여부 체크
-  const isKorean = decodedTicker ? isKoreanStock(decodedTicker) : false
-  
   // v9.20: 유사 종목 추천
   const allSuggestions = decodedTicker ? findSuggestions(decodedTicker) : []
   
@@ -289,20 +269,8 @@ function ErrorState({ message, ticker, onRetry }: { message: string; ticker?: st
                 {decodedTicker ? `"${decodedTicker}" 종목을 찾을 수 없어요` : "종목을 찾을 수 없어요"}
               </p>
               
-              {/* v9.20: 한국 주식 검색 시 안내 */}
-              {isKorean && (
-                <div className="bg-orange-50 dark:bg-orange-950 rounded-xl p-4 text-left">
-                  <p className="text-sm font-medium text-orange-600 dark:text-orange-400 flex items-center gap-2">
-                    ⚠️ 미주도감은 <strong>미국 주식</strong>만 지원해요
-                  </p>
-                  <p className="text-xs text-orange-500 mt-2">
-                    한국 주식은 네이버 증권, 키움증권 등을 이용해주세요
-                  </p>
-                </div>
-              )}
-              
-              {/* v9.20: 유사 종목 추천 */}
-              {!isKorean && suggestions.length > 0 && (
+              {/* 유사 종목 추천 */}
+              {suggestions.length > 0 && (
                 <div className="bg-primary/5 rounded-xl p-4 text-left">
                   <p className="text-sm font-medium text-foreground flex items-center gap-2 mb-3">
                     <Search className="h-4 w-4" />
@@ -327,7 +295,7 @@ function ErrorState({ message, ticker, onRetry }: { message: string; ticker?: st
               )}
               
               <p className="text-muted-foreground text-sm">
-                영어 티커로 검색해보세요 (예: AAPL, TSLA)
+                영문 티커(AAPL, TSLA) 또는 종목코드(005930)로 검색해보세요
               </p>
               <Link href="/">
                 <Button className="rounded-full px-6">새로운 종목 검색</Button>
