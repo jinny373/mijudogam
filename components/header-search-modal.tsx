@@ -55,6 +55,22 @@ const koreanStockMap: Record<string, string> = {
   "리비안": "RIVN", "루시드": "LCID", "니오": "NIO", "니콜라": "NKLA",
   // 핀테크
   "로빈후드": "HOOD", "페이팔": "PYPL", "블록": "SQ", "업스타트": "UPST", "소파이": "SOFI",
+  // v9.24: eVTOL/UAM
+  "조비에비에이션": "JOBY", "조비": "JOBY", "아처에비에이션": "ACHR", "아처": "ACHR",
+  "릴리움": "LILM", "블레이드": "BLDE", "이항": "EH",
+  // v9.24: 중국 ADR
+  "바이두": "BIDU", "징동": "JD", "핀둬둬": "PDD", "테무": "PDD",
+  "빌리빌리": "BILI", "넷이즈": "NTES", "트립닷컴": "TCOM", "미니소": "MNSO",
+  // v9.24: ETF
+  "SPY": "SPY", "QQQ": "QQQ", "TQQQ": "TQQQ", "SOXL": "SOXL",
+  "VOO": "VOO", "SCHD": "SCHD", "IBIT": "IBIT", "ARKK": "ARKK",
+  // v9.24: 추가 인기
+  "레딧": "RDDT", "쿠팡": "CPNG", "드래프트킹즈": "DKNG", "힘스앤허즈": "HIMS",
+  "카바나": "CVNA", "카바": "CAVA", "크리스퍼테라퓨틱스": "CRSP",
+  "엑슨모빌": "XOM", "셰브론": "CVX", "옥시덴탈": "OXY",
+  "델타항공": "DAL", "유나이티드항공": "UAL", "아메리칸항공": "AAL",
+  "스트래티지": "MSTR", "메르카도리브레": "MELI", "그랩": "GRAB",
+  "깃랩": "GTLB", "센티넬원": "S", "에어로바이론먼트": "AVAV", "크라토스": "KTOS",
 }
 
 // ═══════════════════════════════════════════════════════════════
