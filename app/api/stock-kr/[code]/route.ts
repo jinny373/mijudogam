@@ -180,14 +180,20 @@ const KR_ALIASES: Record<string, string> = {
 // DART: corp_code 조회 (종목코드 → 고유번호)
 async function getCorpCode(stockCode: string): Promise<string | null> {
   try {
-    // DART 기업개황 API로 종목코드에서 corp_code 찾기
+    if (!DART_API_KEY) {
+      console.warn("DART_API_KEY가 설정되지 않았습니다");
+      return null;
+    }
     const url = `${DART_BASE_URL}/company.json?crtfc_key=${DART_API_KEY}&stock_code=${stockCode}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { 
+      signal: AbortSignal.timeout(5000) // 5초 타임아웃
+    });
     const data = await res.json();
     
     if (data.status === "000" && data.corp_code) {
       return data.corp_code;
     }
+    console.warn(`DART corp_code 조회: status=${data.status}, message=${data.message || "N/A"}`);
     return null;
   } catch (error) {
     console.error("DART corp_code 조회 실패:", error);
@@ -198,14 +204,16 @@ async function getCorpCode(stockCode: string): Promise<string | null> {
 // DART: 단일 재무제표 조회
 async function getDartFinancials(corpCode: string, year: string, reportCode: string = "11011") {
   try {
-    // reportCode: 11013=1분기, 11012=반기, 11014=3분기, 11011=사업보고서(연간)
     const url = `${DART_BASE_URL}/fnlttSinglAcntAll.json?crtfc_key=${DART_API_KEY}&corp_code=${corpCode}&bsns_year=${year}&reprt_code=${reportCode}&fs_div=CFS`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000) // 8초 타임아웃
+    });
     const data = await res.json();
     
     if (data.status === "000" && data.list) {
       return data.list;
     }
+    console.warn(`DART 재무제표 (${year}): status=${data.status}, message=${data.message || "N/A"}`);
     return [];
   } catch (error) {
     console.error(`DART 재무제표 조회 실패 (${year}):`, error);
@@ -307,10 +315,10 @@ function calculateKRSignals(data: {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const stockCode = params.code;
+    const { code: stockCode } = await params;
     const stockInfo = KR_STOCK_MAP[stockCode];
     
     if (!stockInfo) {

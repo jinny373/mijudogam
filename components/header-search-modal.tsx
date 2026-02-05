@@ -11,6 +11,8 @@ interface SearchResult {
   name: string
   exchange: string
   type: string
+  isKorean?: boolean
+  stockCode?: string
 }
 
 // 한글 매핑 (stock-search-form.tsx와 동기화 - 자주 검색되는 종목)
@@ -107,7 +109,7 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
       return
     }
 
-    // 한글 매핑 체크
+    // 한글 매핑 체크 (미국 주식)
     const seenTickers = new Set<string>()
     const koreanMatches = Object.entries(koreanStockMap)
       .filter(([korean]) => korean.includes(searchQuery))
@@ -121,6 +123,7 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
         name: korean,
         exchange: "NASDAQ",
         type: "EQUITY",
+        isKorean: false,
       }))
 
     if (koreanMatches.length > 0) {
@@ -133,10 +136,11 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
       const data = await response.json()
       
       if (data.results && data.results.length > 0) {
+        // API 결과에서 로컬 매칭과 중복 제거
         const apiResults = data.results.filter(
           (r: SearchResult) => !koreanMatches.some(k => k.ticker === r.ticker)
         )
-        setResults([...koreanMatches, ...apiResults].slice(0, 6))
+        setResults([...koreanMatches, ...apiResults].slice(0, 8))
       } else if (koreanMatches.length === 0) {
         setResults([])
       }
@@ -187,7 +191,7 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
 
     if (!query.trim()) return
 
-    // 한글 매핑 체크
+    // 한글 매핑 체크 (미국 주식)
     const mappedTicker = koreanStockMap[query.trim()]
     if (mappedTicker) {
       handleSelectStock(mappedTicker)
@@ -281,10 +285,10 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
                   }`}
                 >
                   <div>
-                    {(result as any).isKorean ? (
+                    {result.isKorean ? (
                       <>
                         <span className="font-semibold text-primary">{result.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{(result as any).stockCode}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{result.stockCode}</span>
                       </>
                     ) : (
                       <>
@@ -294,11 +298,14 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
                     )}
                   </div>
                   <span className={`text-xs px-1.5 py-0.5 rounded ${
-                    (result as any).isKorean 
-                      ? "bg-blue-100 text-blue-700" 
+                    result.isKorean 
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" 
                       : "text-muted-foreground"
                   }`}>
-                    {(result as any).isKorean ? (result.exchange === "KOSPI" ? "코스피" : "코스닥") : result.exchange}
+                    {result.isKorean 
+                      ? (result.exchange === "KOSPI" ? "코스피" : "코스닥") 
+                      : result.exchange
+                    }
                   </span>
                 </button>
               ))}
