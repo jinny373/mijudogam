@@ -498,6 +498,8 @@ export default function StockDetailPage() {
           // 주가 성과
           performance: data.performance,
           priceInfo: data.priceInfo,
+          // v9.24: 관련 종목
+          relatedStocks: data.relatedStocks || [],
         }
         setStockData(converted)
       } else {

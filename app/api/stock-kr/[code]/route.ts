@@ -570,6 +570,244 @@ export async function GET(
       return String(Math.round(value));
     };
 
+    // ═══════════════════════════════════════════════════════════════
+    // v9.24: 한국 주식 관련 종목 추천
+    // ═══════════════════════════════════════════════════════════════
+    const krRelatedStocks: Record<string, { ticker: string; name: string; nameKo: string; reason: string }[]> = {
+      // 삼성전자
+      "005930": [
+        { ticker: "000660", name: "SK하이닉스", nameKo: "SK하이닉스", reason: "반도체 경쟁사" },
+        { ticker: "NVDA", name: "NVIDIA", nameKo: "엔비디아", reason: "AI 반도체 고객" },
+        { ticker: "TSM", name: "TSMC", nameKo: "TSMC", reason: "파운드리 경쟁" },
+        { ticker: "042700", name: "한미반도체", nameKo: "한미반도체", reason: "반도체 장비" },
+        { ticker: "009150", name: "삼성전기", nameKo: "삼성전기", reason: "삼성 그룹사" },
+        { ticker: "006400", name: "삼성SDI", nameKo: "삼성SDI", reason: "삼성 그룹사" },
+      ],
+      // SK하이닉스
+      "000660": [
+        { ticker: "005930", name: "삼성전자", nameKo: "삼성전자", reason: "반도체 경쟁사" },
+        { ticker: "NVDA", name: "NVIDIA", nameKo: "엔비디아", reason: "HBM 고객" },
+        { ticker: "MU", name: "Micron", nameKo: "마이크론", reason: "메모리 경쟁사" },
+        { ticker: "042700", name: "한미반도체", nameKo: "한미반도체", reason: "반도체 장비" },
+        { ticker: "TSM", name: "TSMC", nameKo: "TSMC", reason: "파운드리" },
+        { ticker: "034730", name: "SK", nameKo: "SK", reason: "모회사" },
+      ],
+      // 현대자동차
+      "005380": [
+        { ticker: "000270", name: "기아", nameKo: "기아", reason: "현대차 그룹" },
+        { ticker: "012330", name: "현대모비스", nameKo: "현대모비스", reason: "부품 공급" },
+        { ticker: "TSLA", name: "Tesla", nameKo: "테슬라", reason: "EV 경쟁사" },
+        { ticker: "TM", name: "Toyota", nameKo: "토요타", reason: "글로벌 경쟁사" },
+        { ticker: "018880", name: "한온시스템", nameKo: "한온시스템", reason: "열관리 부품" },
+        { ticker: "064350", name: "현대로템", nameKo: "현대로템", reason: "현대차 그룹" },
+      ],
+      // 기아
+      "000270": [
+        { ticker: "005380", name: "현대자동차", nameKo: "현대자동차", reason: "현대차 그룹" },
+        { ticker: "012330", name: "현대모비스", nameKo: "현대모비스", reason: "부품 공급" },
+        { ticker: "TSLA", name: "Tesla", nameKo: "테슬라", reason: "EV 경쟁사" },
+        { ticker: "F", name: "Ford", nameKo: "포드", reason: "글로벌 경쟁" },
+        { ticker: "018880", name: "한온시스템", nameKo: "한온시스템", reason: "열관리 부품" },
+        { ticker: "064350", name: "현대로템", nameKo: "현대로템", reason: "현대차 그룹" },
+      ],
+      // 네이버
+      "035420": [
+        { ticker: "035720", name: "카카오", nameKo: "카카오", reason: "플랫폼 경쟁사" },
+        { ticker: "GOOGL", name: "Alphabet", nameKo: "구글", reason: "검색 경쟁" },
+        { ticker: "META", name: "Meta", nameKo: "메타", reason: "SNS 경쟁" },
+        { ticker: "259960", name: "크래프톤", nameKo: "크래프톤", reason: "게임/콘텐츠" },
+        { ticker: "323410", name: "카카오뱅크", nameKo: "카카오뱅크", reason: "핀테크" },
+        { ticker: "018260", name: "삼성SDS", nameKo: "삼성SDS", reason: "IT 서비스" },
+      ],
+      // 카카오
+      "035720": [
+        { ticker: "035420", name: "NAVER", nameKo: "네이버", reason: "플랫폼 경쟁사" },
+        { ticker: "323410", name: "카카오뱅크", nameKo: "카카오뱅크", reason: "카카오 그룹" },
+        { ticker: "377300", name: "카카오페이", nameKo: "카카오페이", reason: "카카오 그룹" },
+        { ticker: "293490", name: "카카오게임즈", nameKo: "카카오게임즈", reason: "카카오 그룹" },
+        { ticker: "META", name: "Meta", nameKo: "메타", reason: "SNS 경쟁" },
+        { ticker: "259960", name: "크래프톤", nameKo: "크래프톤", reason: "게임/콘텐츠" },
+      ],
+      // LG에너지솔루션
+      "373220": [
+        { ticker: "006400", name: "삼성SDI", nameKo: "삼성SDI", reason: "배터리 경쟁사" },
+        { ticker: "051910", name: "LG화학", nameKo: "LG화학", reason: "모회사" },
+        { ticker: "003670", name: "포스코퓨처엠", nameKo: "포스코퓨처엠", reason: "양극재 공급" },
+        { ticker: "247540", name: "에코프로비엠", nameKo: "에코프로비엠", reason: "양극재" },
+        { ticker: "TSLA", name: "Tesla", nameKo: "테슬라", reason: "배터리 고객" },
+        { ticker: "361610", name: "SK아이이테크놀로지", nameKo: "SKIET", reason: "분리막" },
+      ],
+      // 삼성SDI
+      "006400": [
+        { ticker: "373220", name: "LG에너지솔루션", nameKo: "LG에너지솔루션", reason: "배터리 경쟁사" },
+        { ticker: "051910", name: "LG화학", nameKo: "LG화학", reason: "배터리 소재" },
+        { ticker: "003670", name: "포스코퓨처엠", nameKo: "포스코퓨처엠", reason: "양극재" },
+        { ticker: "005930", name: "삼성전자", nameKo: "삼성전자", reason: "삼성 그룹사" },
+        { ticker: "TSLA", name: "Tesla", nameKo: "테슬라", reason: "배터리 고객" },
+        { ticker: "247540", name: "에코프로비엠", nameKo: "에코프로비엠", reason: "양극재" },
+      ],
+      // 한화에어로스페이스
+      "012450": [
+        { ticker: "042660", name: "한화오션", nameKo: "한화오션", reason: "한화 그룹" },
+        { ticker: "272210", name: "한화시스템", nameKo: "한화시스템", reason: "한화 그룹" },
+        { ticker: "047810", name: "한국항공우주", nameKo: "한국항공우주", reason: "방산 경쟁" },
+        { ticker: "064350", name: "현대로템", nameKo: "현대로템", reason: "방산" },
+        { ticker: "LMT", name: "Lockheed Martin", nameKo: "록히드마틴", reason: "글로벌 방산" },
+        { ticker: "454910", name: "두산로보틱스", nameKo: "두산로보틱스", reason: "방산/로봇" },
+      ],
+      // 포스코홀딩스
+      "005490": [
+        { ticker: "003670", name: "포스코퓨처엠", nameKo: "포스코퓨처엠", reason: "포스코 그룹" },
+        { ticker: "022100", name: "포스코DX", nameKo: "포스코DX", reason: "포스코 그룹" },
+        { ticker: "004020", name: "현대제철", nameKo: "현대제철", reason: "철강 경쟁" },
+        { ticker: "NUE", name: "Nucor", nameKo: "뉴코어", reason: "글로벌 철강" },
+        { ticker: "X", name: "US Steel", nameKo: "US스틸", reason: "글로벌 철강" },
+        { ticker: "010130", name: "고려아연", nameKo: "고려아연", reason: "비철금속" },
+      ],
+      // 크래프톤
+      "259960": [
+        { ticker: "036570", name: "엔씨소프트", nameKo: "엔씨소프트", reason: "게임 경쟁사" },
+        { ticker: "251270", name: "넷마블", nameKo: "넷마블", reason: "게임 경쟁사" },
+        { ticker: "352820", name: "하이브", nameKo: "하이브", reason: "엔터/콘텐츠" },
+        { ticker: "293490", name: "카카오게임즈", nameKo: "카카오게임즈", reason: "게임" },
+        { ticker: "263750", name: "펄어비스", nameKo: "펄어비스", reason: "게임" },
+        { ticker: "EA", name: "EA", nameKo: "EA", reason: "글로벌 게임" },
+      ],
+      // 하이브
+      "352820": [
+        { ticker: "035900", name: "JYP Ent", nameKo: "JYP", reason: "엔터 경쟁사" },
+        { ticker: "041510", name: "에스엠", nameKo: "SM", reason: "엔터 경쟁사" },
+        { ticker: "122870", name: "YG Ent", nameKo: "YG", reason: "엔터 경쟁사" },
+        { ticker: "259960", name: "크래프톤", nameKo: "크래프톤", reason: "콘텐츠/게임" },
+        { ticker: "SPOT", name: "Spotify", nameKo: "스포티파이", reason: "음악 스트리밍" },
+        { ticker: "035720", name: "카카오", nameKo: "카카오", reason: "콘텐츠" },
+      ],
+      // 에코프로비엠
+      "247540": [
+        { ticker: "086520", name: "에코프로", nameKo: "에코프로", reason: "모회사" },
+        { ticker: "373220", name: "LG에너지솔루션", nameKo: "LG에너지솔루션", reason: "고객사" },
+        { ticker: "003670", name: "포스코퓨처엠", nameKo: "포스코퓨처엠", reason: "양극재 경쟁" },
+        { ticker: "006400", name: "삼성SDI", nameKo: "삼성SDI", reason: "배터리" },
+        { ticker: "361610", name: "SK아이이테크놀로지", nameKo: "SKIET", reason: "배터리 소재" },
+        { ticker: "051910", name: "LG화학", nameKo: "LG화학", reason: "배터리 소재" },
+      ],
+      // 알테오젠
+      "196170": [
+        { ticker: "068270", name: "셀트리온", nameKo: "셀트리온", reason: "바이오 대장" },
+        { ticker: "207940", name: "삼성바이오로직스", nameKo: "삼성바이오", reason: "바이오" },
+        { ticker: "328130", name: "루닛", nameKo: "루닛", reason: "바이오/AI" },
+        { ticker: "LLY", name: "Eli Lilly", nameKo: "일라이릴리", reason: "글로벌 제약" },
+        { ticker: "000100", name: "유한양행", nameKo: "유한양행", reason: "제약" },
+        { ticker: "128940", name: "한미약품", nameKo: "한미약품", reason: "제약" },
+      ],
+      // KB금융
+      "105560": [
+        { ticker: "055550", name: "신한지주", nameKo: "신한지주", reason: "금융 경쟁사" },
+        { ticker: "086790", name: "하나금융지주", nameKo: "하나금융", reason: "금융 경쟁사" },
+        { ticker: "316140", name: "우리금융지주", nameKo: "우리금융", reason: "금융 경쟁사" },
+        { ticker: "138040", name: "메리츠금융지주", nameKo: "메리츠금융", reason: "금융" },
+        { ticker: "JPM", name: "JPMorgan", nameKo: "JP모건", reason: "글로벌 금융" },
+        { ticker: "323410", name: "카카오뱅크", nameKo: "카카오뱅크", reason: "핀테크 경쟁" },
+      ],
+      // HD현대일렉트릭
+      "267260": [
+        { ticker: "329180", name: "HD현대중공업", nameKo: "HD현대중공업", reason: "HD현대 그룹" },
+        { ticker: "267250", name: "HD현대", nameKo: "HD현대", reason: "모회사" },
+        { ticker: "042660", name: "한화오션", nameKo: "한화오션", reason: "중공업 경쟁" },
+        { ticker: "034020", name: "두산에너빌리티", nameKo: "두산에너빌리티", reason: "전력기기" },
+        { ticker: "ETN", name: "Eaton", nameKo: "이튼", reason: "글로벌 전력" },
+        { ticker: "012450", name: "한화에어로스페이스", nameKo: "한화에어로", reason: "방산/중공업" },
+      ],
+    };
+
+    // 섹터 기반 기본 한국 주식 추천
+    const krSectorDefaults: Record<string, { ticker: string; name: string; nameKo: string; reason: string }[]> = {
+      "Technology": [
+        { ticker: "005930", name: "삼성전자", nameKo: "삼성전자", reason: "한국 테크 대장" },
+        { ticker: "000660", name: "SK하이닉스", nameKo: "SK하이닉스", reason: "반도체" },
+        { ticker: "035420", name: "NAVER", nameKo: "네이버", reason: "플랫폼" },
+        { ticker: "035720", name: "카카오", nameKo: "카카오", reason: "플랫폼" },
+        { ticker: "042700", name: "한미반도체", nameKo: "한미반도체", reason: "반도체 장비" },
+        { ticker: "018260", name: "삼성SDS", nameKo: "삼성SDS", reason: "IT 서비스" },
+      ],
+      "Financial Services": [
+        { ticker: "105560", name: "KB금융", nameKo: "KB금융", reason: "금융 1위" },
+        { ticker: "055550", name: "신한지주", nameKo: "신한지주", reason: "금융" },
+        { ticker: "086790", name: "하나금융지주", nameKo: "하나금융", reason: "금융" },
+        { ticker: "316140", name: "우리금융지주", nameKo: "우리금융", reason: "금융" },
+        { ticker: "138040", name: "메리츠금융지주", nameKo: "메리츠금융", reason: "금융" },
+        { ticker: "323410", name: "카카오뱅크", nameKo: "카카오뱅크", reason: "핀테크" },
+      ],
+      "Consumer Cyclical": [
+        { ticker: "005380", name: "현대자동차", nameKo: "현대자동차", reason: "자동차" },
+        { ticker: "000270", name: "기아", nameKo: "기아", reason: "자동차" },
+        { ticker: "035720", name: "카카오", nameKo: "카카오", reason: "플랫폼/커머스" },
+        { ticker: "035420", name: "NAVER", nameKo: "네이버", reason: "이커머스" },
+        { ticker: "259960", name: "크래프톤", nameKo: "크래프톤", reason: "게임" },
+        { ticker: "352820", name: "하이브", nameKo: "하이브", reason: "엔터" },
+      ],
+      "Industrials": [
+        { ticker: "012450", name: "한화에어로스페이스", nameKo: "한화에어로", reason: "방산" },
+        { ticker: "329180", name: "HD현대중공업", nameKo: "HD현대중공업", reason: "조선" },
+        { ticker: "042660", name: "한화오션", nameKo: "한화오션", reason: "조선" },
+        { ticker: "047810", name: "한국항공우주", nameKo: "한국항공우주", reason: "방산" },
+        { ticker: "064350", name: "현대로템", nameKo: "현대로템", reason: "방산/철도" },
+        { ticker: "267260", name: "HD현대일렉트릭", nameKo: "HD현대일렉트릭", reason: "전력기기" },
+      ],
+      "Healthcare": [
+        { ticker: "068270", name: "셀트리온", nameKo: "셀트리온", reason: "바이오 대장" },
+        { ticker: "207940", name: "삼성바이오로직스", nameKo: "삼성바이오", reason: "바이오" },
+        { ticker: "196170", name: "알테오젠", nameKo: "알테오젠", reason: "바이오" },
+        { ticker: "328130", name: "루닛", nameKo: "루닛", reason: "AI 의료" },
+        { ticker: "000100", name: "유한양행", nameKo: "유한양행", reason: "제약" },
+        { ticker: "128940", name: "한미약품", nameKo: "한미약품", reason: "제약" },
+      ],
+      "Energy": [
+        { ticker: "010950", name: "S-Oil", nameKo: "S-Oil", reason: "정유" },
+        { ticker: "096770", name: "SK이노베이션", nameKo: "SK이노베이션", reason: "에너지" },
+        { ticker: "015760", name: "한국전력", nameKo: "한국전력", reason: "전력" },
+        { ticker: "034020", name: "두산에너빌리티", nameKo: "두산에너빌리티", reason: "원전" },
+        { ticker: "112610", name: "씨에스윈드", nameKo: "씨에스윈드", reason: "풍력" },
+        { ticker: "009830", name: "한화솔루션", nameKo: "한화솔루션", reason: "태양광" },
+      ],
+      "Basic Materials": [
+        { ticker: "005490", name: "POSCO홀딩스", nameKo: "포스코", reason: "철강" },
+        { ticker: "004020", name: "현대제철", nameKo: "현대제철", reason: "철강" },
+        { ticker: "010130", name: "고려아연", nameKo: "고려아연", reason: "비철금속" },
+        { ticker: "051910", name: "LG화학", nameKo: "LG화학", reason: "화학" },
+        { ticker: "003670", name: "포스코퓨처엠", nameKo: "포스코퓨처엠", reason: "소재" },
+        { ticker: "011170", name: "롯데케미칼", nameKo: "롯데케미칼", reason: "화학" },
+      ],
+      "Communication Services": [
+        { ticker: "030200", name: "KT", nameKo: "KT", reason: "통신" },
+        { ticker: "017670", name: "SK텔레콤", nameKo: "SK텔레콤", reason: "통신" },
+        { ticker: "035420", name: "NAVER", nameKo: "네이버", reason: "플랫폼" },
+        { ticker: "035720", name: "카카오", nameKo: "카카오", reason: "플랫폼" },
+        { ticker: "036570", name: "엔씨소프트", nameKo: "엔씨소프트", reason: "게임" },
+        { ticker: "259960", name: "크래프톤", nameKo: "크래프톤", reason: "게임" },
+      ],
+    };
+
+    // 관련 종목 결정
+    const currentSector = quoteSummary?.summaryProfile?.sector || "";
+    let relatedStocks: { ticker: string; name: string; nameKo: string; reason: string }[];
+
+    if (krRelatedStocks[stockCode]) {
+      relatedStocks = krRelatedStocks[stockCode].filter(s => s.ticker !== stockCode && s.ticker !== yfinTicker);
+    } else if (krSectorDefaults[currentSector]) {
+      relatedStocks = krSectorDefaults[currentSector].filter(s => s.ticker !== stockCode && s.ticker !== yfinTicker);
+    } else {
+      // fallback: 대표 종목
+      relatedStocks = [
+        { ticker: "005930", name: "삼성전자", nameKo: "삼성전자", reason: "한국 대장주" },
+        { ticker: "000660", name: "SK하이닉스", nameKo: "SK하이닉스", reason: "반도체" },
+        { ticker: "005380", name: "현대자동차", nameKo: "현대자동차", reason: "자동차" },
+        { ticker: "035420", name: "NAVER", nameKo: "네이버", reason: "플랫폼" },
+        { ticker: "373220", name: "LG에너지솔루션", nameKo: "LG에너지솔루션", reason: "배터리" },
+        { ticker: "012450", name: "한화에어로스페이스", nameKo: "한화에어로", reason: "방산" },
+      ].filter(s => s.ticker !== stockCode && s.ticker !== yfinTicker);
+    }
+
     const result = {
       isKorean: true,
       basicInfo: {
@@ -624,6 +862,7 @@ export async function GET(
       },
       performance,
       benchmarkName: "KOSPI",
+      relatedStocks: relatedStocks.slice(0, 6),
       priceInfo: {
         high52W,
         low52W,
