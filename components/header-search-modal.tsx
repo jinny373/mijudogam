@@ -15,7 +15,7 @@ interface SearchResult {
   stockCode?: string
 }
 
-// 한글 매핑 (stock-search-form.tsx와 동기화 - 자주 검색되는 종목)
+// 미국 주식 한글 매핑
 const koreanStockMap: Record<string, string> = {
   // 빅테크
   "엔비디아": "NVDA", "애플": "AAPL", "테슬라": "TSLA", "마이크로소프트": "MSFT",
@@ -55,6 +55,108 @@ const koreanStockMap: Record<string, string> = {
   "로빈후드": "HOOD", "페이팔": "PYPL", "블록": "SQ", "업스타트": "UPST", "소파이": "SOFI",
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 한국 주식 한글 → 종목코드 (엔터 직접 입력 대응)
+// ═══════════════════════════════════════════════════════════════
+const krDirectMap: Record<string, { code: string; market: "KS" | "KQ" }> = {
+  "삼성전자": { code: "005930", market: "KS" },
+  "삼전": { code: "005930", market: "KS" },
+  "삼성": { code: "005930", market: "KS" },
+  "sk하이닉스": { code: "000660", market: "KS" },
+  "하이닉스": { code: "000660", market: "KS" },
+  "현대자동차": { code: "005380", market: "KS" },
+  "현대차": { code: "005380", market: "KS" },
+  "현차": { code: "005380", market: "KS" },
+  "기아": { code: "000270", market: "KS" },
+  "네이버": { code: "035420", market: "KS" },
+  "naver": { code: "035420", market: "KS" },
+  "카카오": { code: "035720", market: "KS" },
+  "카톡": { code: "035720", market: "KS" },
+  "lg에너지솔루션": { code: "373220", market: "KS" },
+  "lg엔솔": { code: "373220", market: "KS" },
+  "삼성sdi": { code: "006400", market: "KS" },
+  "lg화학": { code: "051910", market: "KS" },
+  "셀트리온": { code: "068270", market: "KS" },
+  "포스코": { code: "005490", market: "KS" },
+  "한국전력": { code: "015760", market: "KS" },
+  "한전": { code: "015760", market: "KS" },
+  "kb금융": { code: "105560", market: "KS" },
+  "국민은행": { code: "105560", market: "KS" },
+  "신한지주": { code: "055550", market: "KS" },
+  "신한은행": { code: "055550", market: "KS" },
+  "하나금융": { code: "086790", market: "KS" },
+  "하나은행": { code: "086790", market: "KS" },
+  "우리금융": { code: "316140", market: "KS" },
+  "우리은행": { code: "316140", market: "KS" },
+  "크래프톤": { code: "259960", market: "KS" },
+  "하이브": { code: "352820", market: "KS" },
+  "엔씨소프트": { code: "036570", market: "KS" },
+  "엔씨": { code: "036570", market: "KS" },
+  "넷마블": { code: "251270", market: "KS" },
+  "대한항공": { code: "003490", market: "KS" },
+  "삼성물산": { code: "028260", market: "KS" },
+  "현대모비스": { code: "012330", market: "KS" },
+  "lg전자": { code: "066570", market: "KS" },
+  "삼성전기": { code: "009150", market: "KS" },
+  "삼성생명": { code: "032830", market: "KS" },
+  "삼성화재": { code: "000810", market: "KS" },
+  "삼성중공업": { code: "010140", market: "KS" },
+  "현대건설": { code: "000720", market: "KS" },
+  "현대제철": { code: "004020", market: "KS" },
+  "고려아연": { code: "010130", market: "KS" },
+  "kt": { code: "030200", market: "KS" },
+  "sk텔레콤": { code: "017670", market: "KS" },
+  "skt": { code: "017670", market: "KS" },
+  "kt&g": { code: "033780", market: "KS" },
+  "한미반도체": { code: "042700", market: "KS" },
+  "hd현대일렉트릭": { code: "267260", market: "KS" },
+  "현대일렉트릭": { code: "267260", market: "KS" },
+  "hd현대중공업": { code: "329180", market: "KS" },
+  "현대중공업": { code: "329180", market: "KS" },
+  "두산에너빌리티": { code: "034020", market: "KS" },
+  "hmm": { code: "011200", market: "KS" },
+  "아모레퍼시픽": { code: "090430", market: "KS" },
+  "코웨이": { code: "021240", market: "KS" },
+  "카카오뱅크": { code: "323410", market: "KS" },
+  "카카오페이": { code: "377300", market: "KS" },
+  "포스코퓨처엠": { code: "003670", market: "KS" },
+  "sk이노베이션": { code: "096770", market: "KS" },
+  "sk": { code: "034730", market: "KS" },
+  "lg": { code: "003550", market: "KS" },
+  "에코프로비엠": { code: "247540", market: "KQ" },
+  "에코프로": { code: "086520", market: "KQ" },
+  "알테오젠": { code: "196170", market: "KQ" },
+  "펄어비스": { code: "263750", market: "KQ" },
+  "카카오게임즈": { code: "293490", market: "KQ" },
+  "jyp": { code: "035900", market: "KQ" },
+  "에스엠": { code: "041510", market: "KQ" },
+  "sm": { code: "041510", market: "KQ" },
+  "위메이드": { code: "112040", market: "KQ" },
+  "hpsp": { code: "403870", market: "KQ" },
+  "리노공업": { code: "058470", market: "KQ" },
+  "루닛": { code: "328130", market: "KQ" },
+  "주성엔지니어링": { code: "036930", market: "KQ" },
+  "주성": { code: "036930", market: "KQ" },
+  "f&f": { code: "383220", market: "KQ" },
+  "솔브레인": { code: "357780", market: "KQ" },
+  "아프리카tv": { code: "067160", market: "KQ" },
+  "숲": { code: "067160", market: "KQ" },
+  "soop": { code: "067160", market: "KQ" },
+  "휴젤": { code: "145020", market: "KQ" },
+}
+
+function resolveKrTicker(input: string): string | null {
+  const normalized = input.replace(/\s/g, "").toLowerCase()
+  const match = krDirectMap[normalized]
+  if (match) return `${match.code}.${match.market}`
+  for (const [key, val] of Object.entries(krDirectMap)) {
+    if (key.includes(normalized) || normalized.includes(key)) {
+      return `${val.code}.${val.market}`
+    }
+  }
+  return null
+}
+
 interface HeaderSearchModalProps {
   isOpen: boolean
   onClose: () => void
@@ -69,15 +171,11 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 모달 열릴 때 즉시 포커스 (모바일 키보드 트리거)
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      // 모바일에서 키보드가 확실히 올라오도록 즉시 포커스
       inputRef.current.focus()
-      // iOS Safari 대응: 약간의 딜레이 후 다시 포커스
       const timer = setTimeout(() => {
         inputRef.current?.focus()
-        // 커서를 끝으로 이동
         inputRef.current?.setSelectionRange(
           inputRef.current.value.length,
           inputRef.current.value.length
@@ -87,7 +185,6 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     }
   }, [isOpen])
 
-  // ESC 키로 닫기
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -102,14 +199,12 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     }
   }, [isOpen, onClose])
 
-  // 검색 API 호출
   const searchStocks = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim() || searchQuery.length < 1) {
       setResults([])
       return
     }
 
-    // 한글 매핑 체크 (미국 주식)
     const seenTickers = new Set<string>()
     const koreanMatches = Object.entries(koreanStockMap)
       .filter(([korean]) => korean.includes(searchQuery))
@@ -136,7 +231,6 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
       const data = await response.json()
       
       if (data.results && data.results.length > 0) {
-        // API 결과에서 로컬 매칭과 중복 제거
         const apiResults = data.results.filter(
           (r: SearchResult) => !koreanMatches.some(k => k.ticker === r.ticker)
         )
@@ -151,12 +245,10 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     }
   }, [])
 
-  // 디바운스 검색
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
     }
-
     if (query.length >= 1) {
       searchTimeoutRef.current = setTimeout(() => {
         searchStocks(query)
@@ -164,7 +256,6 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     } else {
       setResults([])
     }
-
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current)
@@ -172,7 +263,6 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     }
   }, [query, searchStocks])
 
-  // 종목 선택
   const handleSelectStock = (ticker: string) => {
     onClose()
     setQuery("")
@@ -180,10 +270,13 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
     router.push(`/stock/${ticker}`)
   }
 
-  // 폼 제출
+  // ═══════════════════════════════════════════════════════════════
+  // 폼 제출 (엔터 키) - 한국/미국 모두 올바른 URL로 이동
+  // ═══════════════════════════════════════════════════════════════
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
+    // 1. 검색 결과에서 화살표로 선택한 항목
     if (selectedIndex >= 0 && results[selectedIndex]) {
       handleSelectStock(results[selectedIndex].ticker)
       return
@@ -191,21 +284,32 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
 
     if (!query.trim()) return
 
-    // 한글 매핑 체크 (미국 주식)
+    // 2. 검색 결과가 있으면 첫 번째 결과로 (가장 자연스러운 UX)
+    if (results.length > 0) {
+      handleSelectStock(results[0].ticker)
+      return
+    }
+
+    // 3. 한국 주식 한글 → 종목코드 변환
+    const krTicker = resolveKrTicker(query.trim())
+    if (krTicker) {
+      handleSelectStock(krTicker)
+      return
+    }
+
+    // 4. 미국 주식 한글 매핑
     const mappedTicker = koreanStockMap[query.trim()]
     if (mappedTicker) {
       handleSelectStock(mappedTicker)
       return
     }
 
-    // 영문 티커로 바로 이동
+    // 5. 영문 티커로 바로 이동
     handleSelectStock(query.toUpperCase().trim())
   }
 
-  // 키보드 네비게이션
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (results.length === 0) return
-
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault()
@@ -228,16 +332,13 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* 배경 오버레이 */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* 검색 모달 */}
       <div className="relative w-full max-w-lg mx-auto mt-16 px-4">
         <div className="bg-background rounded-2xl shadow-2xl overflow-hidden">
-          {/* 검색 입력 */}
           <form onSubmit={handleSubmit} className="relative">
             <div className="flex items-center border-b px-4">
               <Search className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -272,7 +373,6 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
             </div>
           </form>
 
-          {/* 검색 결과 */}
           {results.length > 0 && (
             <div className="max-h-80 overflow-y-auto">
               {results.map((result, index) => (
@@ -312,14 +412,12 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
             </div>
           )}
 
-          {/* 검색 결과 없을 때 */}
           {query.length >= 2 && results.length === 0 && !isSearching && (
             <div className="p-4 text-center text-muted-foreground text-sm">
               검색 결과가 없어요
             </div>
           )}
 
-          {/* 안내 문구 */}
           {query.length === 0 && (
             <div className="p-4 text-center text-muted-foreground text-sm">
               미국·한국 종목명 또는 티커를 입력하세요
