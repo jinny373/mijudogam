@@ -977,16 +977,22 @@ export function StockSearchForm({ autoFocus = false }: StockSearchFormProps) {
             <span>최근 본 종목</span>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
-            {recentStocks.map((stock) => (
-              <button
-                key={stock.ticker}
-                onClick={() => handleSelectStock(stock.ticker, stock.name)}
-                disabled={isLoading}
-                className="px-3 py-1.5 rounded-full text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {stock.ticker}
-              </button>
-            ))}
+            {recentStocks.map((stock) => {
+              const isKR = /^\d+(\.(KS|KQ))?$/i.test(stock.ticker)
+              const displayName = isKR
+                ? (stock.name && stock.name !== stock.ticker ? stock.name : stock.ticker)
+                : stock.ticker
+              return (
+                <button
+                  key={stock.ticker}
+                  onClick={() => handleSelectStock(stock.ticker, stock.name)}
+                  disabled={isLoading}
+                  className="px-3 py-1.5 rounded-full text-sm font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {displayName}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
