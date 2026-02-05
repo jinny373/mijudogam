@@ -357,17 +357,22 @@ export default function StockDetailPage() {
       setIsLoading(true)
       setError(null)
 
-      // 한국 주식 감지: 숫자.KS, 숫자.KQ 패턴
-      const isKR = /^\d+\.(KS|KQ)$/i.test(ticker)
+      // URL 디코딩 (브라우저가 특수문자를 인코딩할 수 있음)
+      const decodedTicker = decodeURIComponent(ticker)
+      
+      // 한국 주식 감지:
+      // 1) 숫자.KS 또는 숫자.KQ 패턴 (정상 경로)
+      // 2) 6자리 순수 숫자 (URL에서 .KS가 잘린 경우 대비)
+      const isKR = /^\d+\.(KS|KQ)$/i.test(decodedTicker) || /^\d{6}$/.test(decodedTicker)
       
       let apiUrl: string
       if (isKR) {
         // 한국 주식: stock-kr API 사용
-        const stockCode = ticker.split(".")[0]
+        const stockCode = decodedTicker.split(".")[0] // "005930.KS" → "005930", "005930" → "005930"
         apiUrl = `/api/stock-kr/${stockCode}?v=${Date.now()}`
       } else {
         // 미국 주식: 기존 API
-        apiUrl = `/api/stock/${ticker}?v=${Date.now()}`
+        apiUrl = `/api/stock/${decodedTicker}?v=${Date.now()}`
       }
 
       const response = await fetch(apiUrl)
@@ -379,7 +384,7 @@ export default function StockDetailPage() {
       }
 
       // 한국 주식인 경우 데이터 구조 통일
-      if (isKR && data.isKorean) {
+      if (data.isKorean && data.basicInfo) {
         // 기존 미국 주식 페이지 구조에 맞게 변환
         const converted = {
           ...data,
