@@ -385,7 +385,63 @@ export default function StockDetailPage() {
 
       // 한국 주식인 경우 데이터 구조 통일
       if (data.isKorean && data.basicInfo) {
-        // 기존 미국 주식 페이지 구조에 맞게 변환
+        // signalDetails → metrics 배열 변환 (핵심체크 카드용)
+        const signalToStatus = (s: string) => s === "green" ? "green" : s === "red" ? "red" : "yellow"
+        const krMetrics = []
+        
+        if (data.signalDetails?.earning) {
+          krMetrics.push({
+            id: "earning",
+            title: "돈 버는 능력",
+            emoji: "💰",
+            status: signalToStatus(data.signalDetails.earning.status),
+            statusText: data.signalDetails.earning.status === "green" ? "우수" : data.signalDetails.earning.status === "red" ? "주의" : "보통",
+            summary: data.signalDetails.earning.label,
+            mainValue: `${data.financials.roe?.toFixed(1) || 0}%`,
+            mainLabel: "ROE",
+            average: `${data.financials.dartYear || "2025"}년 기준`,
+          })
+        }
+        if (data.signalDetails?.debt) {
+          krMetrics.push({
+            id: "debt",
+            title: "빚 관리",
+            emoji: "🏦",
+            status: signalToStatus(data.signalDetails.debt.status),
+            statusText: data.signalDetails.debt.status === "green" ? "우수" : data.signalDetails.debt.status === "red" ? "주의" : "보통",
+            summary: data.signalDetails.debt.label,
+            mainValue: `${(data.financials.debtRatio * 100)?.toFixed(1) || 0}%`,
+            mainLabel: "부채비율",
+            average: `${data.financials.dartYear || "2025"}년 기준`,
+          })
+        }
+        if (data.signalDetails?.growth) {
+          krMetrics.push({
+            id: "growth",
+            title: "성장 가능성",
+            emoji: "🚀",
+            status: signalToStatus(data.signalDetails.growth.status),
+            statusText: data.signalDetails.growth.status === "green" ? "고성장" : data.signalDetails.growth.status === "red" ? "역성장" : "성장중",
+            summary: data.signalDetails.growth.label,
+            mainValue: `+${data.financials.revenueGrowth?.toFixed(1) || 0}%`,
+            mainLabel: "매출 성장률",
+            average: `${data.financials.dartYear || "2025"}년 기준`,
+          })
+        }
+        if (data.signalDetails?.valuation) {
+          krMetrics.push({
+            id: "valuation",
+            title: "현재 몸값",
+            emoji: "💎",
+            status: signalToStatus(data.signalDetails.valuation.status),
+            statusText: data.signalDetails.valuation.status === "green" ? "낮은 편" : data.signalDetails.valuation.status === "red" ? "높은 편" : "적정",
+            summary: data.signalDetails.valuation.label,
+            mainValue: `${data.financials.per?.toFixed(1) || 0}배`,
+            mainLabel: `PER (${data.financials.perType || "Forward"})`,
+            average: "현재 주가 기준",
+          })
+        }
+
         const converted = {
           ...data,
           name: data.basicInfo.name,
@@ -400,6 +456,7 @@ export default function StockDetailPage() {
           industry: data.basicInfo.industry,
           signals: data.signals,
           signalDetails: data.signalDetails,
+          metrics: krMetrics,
           // 한국 전용 필드
           isKorean: true,
           benchmarkName: data.benchmarkName || "KOSPI",
