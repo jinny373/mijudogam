@@ -97,6 +97,7 @@ const KR_STOCK_MAP: Record<string, { name: string; market: "KS" | "KQ" }> = {
   "036930": { name: "주성엔지니어링", market: "KQ" },
   "078600": { name: "대주전자재료", market: "KQ" },
   "383220": { name: "F&F", market: "KQ" },
+  "440110": { name: "파두", market: "KQ" },
 };
 
 // 한글 이름 → 종목코드 검색 매핑

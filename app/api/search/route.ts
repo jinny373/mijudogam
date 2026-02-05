@@ -217,6 +217,8 @@ const krStockSearchMap: Record<string, { code: string; name: string; market: str
   "숲": { code: "067160", name: "아프리카TV(SOOP)", market: "KOSDAQ" },
   "soop": { code: "067160", name: "아프리카TV(SOOP)", market: "KOSDAQ" },
   "휴젤": { code: "145020", name: "휴젤", market: "KOSDAQ" },
+  "파두": { code: "440110", name: "파두", market: "KOSDAQ" },
+  "fadu": { code: "440110", name: "파두", market: "KOSDAQ" },
 };
 
 export async function GET(request: NextRequest) {

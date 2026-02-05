@@ -143,6 +143,8 @@ const krDirectMap: Record<string, { code: string; market: "KS" | "KQ" }> = {
   "숲": { code: "067160", market: "KQ" },
   "soop": { code: "067160", market: "KQ" },
   "휴젤": { code: "145020", market: "KQ" },
+  "파두": { code: "440110", market: "KQ" },
+  "fadu": { code: "440110", market: "KQ" },
 }
 
 function resolveKrTicker(input: string): string | null {
