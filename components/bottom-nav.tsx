@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, PieChart, Sparkles, Heart } from "lucide-react"
+import { Home, PieChart, Sparkles, Heart, Zap } from "lucide-react"
 
 const tabs = [
   {
@@ -16,6 +16,12 @@ const tabs = [
     href: "/sector",
     icon: PieChart,
     matchPaths: ["/sector"],
+  },
+  {
+    name: "토론",
+    href: "/debate",
+    icon: Zap,
+    matchPaths: ["/debate"],
   },
   {
     name: "발견",
