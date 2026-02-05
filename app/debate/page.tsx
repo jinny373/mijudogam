@@ -470,21 +470,21 @@ function generateDebate(
 
 function SummaryVerdictCard({ verdict }: { verdict: { emoji: string; headline: string; detail: string; tone: string } }) {
   const toneStyles: Record<string, string> = {
-    danger: "from-red-500 to-orange-500 text-white",
-    caution: "from-amber-500 to-yellow-500 text-white",
-    neutral: "from-slate-500 to-gray-500 text-white",
-    positive: "from-emerald-500 to-teal-500 text-white",
+    danger: "from-red-950 to-red-900 text-red-50",
+    caution: "from-amber-950 to-amber-900 text-amber-50",
+    neutral: "from-slate-900 to-slate-800 text-slate-50",
+    positive: "from-emerald-950 to-emerald-900 text-emerald-50",
   }
   const bgStyle = toneStyles[verdict.tone] || toneStyles.neutral
 
   return (
     <Card className="overflow-hidden">
-      <div className={`bg-gradient-to-r ${bgStyle} p-4`}>
+      <div className={`bg-gradient-to-r ${bgStyle} p-5`}>
         <div className="flex items-start gap-3">
-          <span className="text-2xl flex-shrink-0 mt-0.5">{verdict.emoji}</span>
+          <span className="text-3xl flex-shrink-0 mt-0.5">{verdict.emoji}</span>
           <div className="min-w-0">
-            <h3 className="font-bold text-sm leading-tight mb-1.5">{verdict.headline}</h3>
-            <p className="text-xs leading-relaxed opacity-95">{verdict.detail}</p>
+            <h3 className="font-bold text-base leading-snug mb-2">{verdict.headline}</h3>
+            <p className="text-sm leading-relaxed opacity-90">{verdict.detail}</p>
           </div>
         </div>
       </div>
