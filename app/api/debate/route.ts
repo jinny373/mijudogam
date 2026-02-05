@@ -4,7 +4,7 @@ import YahooFinance from "yahoo-finance2";
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 // ═══════════════════════════════════════════════════════════════
-// 시장 지수 + 주요 개별 종목 + 환율
+// 시장 지수 + 환율 + 코인
 // ═══════════════════════════════════════════════════════════════
 
 const MARKET_TICKERS = {
@@ -20,6 +20,10 @@ const MARKET_TICKERS = {
   kospi: "^KS11",
   kosdaq: "^KQ11",
   usdkrw: "KRW=X",
+  // 코인
+  btc: "BTC-USD",
+  eth: "ETH-USD",
+  sol: "SOL-USD",
 };
 
 // 핵심 개별 종목 (빅테크 + 반도체 + 방산/에너지)
@@ -64,6 +68,9 @@ const nameMap: Record<string, string> = {
   kospi: "코스피",
   kosdaq: "코스닥",
   usdkrw: "원/달러 환율",
+  btc: "비트코인",
+  eth: "이더리움",
+  sol: "솔라나",
   nvda: "엔비디아",
   googl: "알파벳(구글)",
   amd: "AMD",

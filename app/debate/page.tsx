@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Search, Share2, RefreshCw, TrendingUp, TrendingDown, Minus, MessageCircle, Zap, Shield, ChevronDown, Globe, BarChart3, Landmark, Factory, Briefcase, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Search, Share2, RefreshCw, TrendingUp, TrendingDown, Minus, MessageCircle, Zap, Shield, ChevronDown, Globe, BarChart3, Landmark, Factory, Briefcase, AlertTriangle, Bitcoin } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -44,6 +44,7 @@ const TOPIC_CONFIG: Record<string, { icon: React.ReactNode; label: string; color
   earnings: { icon: <BarChart3 className="h-3.5 w-3.5" />, label: "기업 실적", color: "bg-emerald-100 text-emerald-700" },
   macro: { icon: <Landmark className="h-3.5 w-3.5" />, label: "금리·환율", color: "bg-sky-100 text-sky-700" },
   commodity: { icon: <Factory className="h-3.5 w-3.5" />, label: "원자재·에너지", color: "bg-orange-100 text-orange-700" },
+  crypto: { icon: <Bitcoin className="h-3.5 w-3.5" />, label: "코인·가상자산", color: "bg-yellow-100 text-yellow-700" },
   korea: { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: "한국 시장", color: "bg-rose-100 text-rose-700" },
   strategy: { icon: <Briefcase className="h-3.5 w-3.5" />, label: "투자 전략", color: "bg-indigo-100 text-indigo-700" },
 }
@@ -64,7 +65,78 @@ function pct(n: number | undefined): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AI 토론 생성 — 6개 주제 라운드
+// 종합 한마디 생성
+// ═══════════════════════════════════════════════════════════════
+
+function generateSummaryVerdict(
+  market: Record<string, MarketQuote>,
+  stocks: Record<string, MarketQuote>
+): { emoji: string; headline: string; detail: string; tone: "danger" | "caution" | "neutral" | "positive" } {
+  const sp = market.sp500
+  const nasdaq = market.nasdaq
+  const vix = market.vix
+  const btc = market.btc
+  const kospi = market.kospi
+  const krw = market.usdkrw
+
+  const spPct = sp?.changePercent ?? 0
+  const nasPct = nasdaq?.changePercent ?? 0
+  const vixLvl = vix?.price ?? 0
+  const btcPct = btc?.changePercent ?? 0
+  const kospiPct = kospi?.changePercent ?? 0
+
+  // 패닉 (VIX 30+ 또는 미국 -2% 이상)
+  if (vixLvl > 30 || spPct < -2 || nasPct < -3) {
+    return {
+      emoji: "🚨",
+      headline: "시장 공포 극대화 — 패닉 매도 주의",
+      detail: `VIX ${fmt(vixLvl, 1)}에 S&P ${pct(spPct)} 하락. 관세·실적 불안이 동시 폭발. 현금 비중 확대하고 분할 매수 기회 포착.`,
+      tone: "danger"
+    }
+  }
+
+  // 약세 (미·한 동반 하락 + 코인도 약세)
+  if (spPct < -0.3 && kospiPct < -0.5) {
+    const cryptoNote = btcPct < -2 ? ` 비트코인도 ${pct(btcPct)}로 위험자산 동반 약세.` : ""
+    return {
+      emoji: "⚠️",
+      headline: "미·한 동반 약세 — 관세·실적 불안 지속",
+      detail: `S&P ${pct(spPct)}, 코스피 ${pct(kospiPct)} 하락.${cryptoNote} 관세 불확실성과 빅테크 실적 우려가 시장을 짓누르는 중. 방어적 포지션 유지 권장.`,
+      tone: "caution"
+    }
+  }
+
+  // 미국만 약세
+  if (spPct < -0.3 || nasPct < -0.5) {
+    return {
+      emoji: "📉",
+      headline: "미국 시장 조정 — 기술주 중심 약세",
+      detail: `나스닥 ${pct(nasPct)}, S&P ${pct(spPct)}. ${vixLvl > 20 ? `VIX ${fmt(vixLvl, 1)}로 불안 심리 확대.` : "아직 패닉은 아니나 관세·금리 변수 주시."} 단기 변동성에 흔들리지 말고 펀더멘털 중심 대응.`,
+      tone: "caution"
+    }
+  }
+
+  // 상승세
+  if (spPct > 0.5 && nasPct > 0.5) {
+    return {
+      emoji: "🚀",
+      headline: "미국 시장 강세 — 위험자산 선호 확대",
+      detail: `S&P ${pct(spPct)}, 나스닥 ${pct(nasPct)} 상승. ${btcPct > 1 ? `비트코인도 ${pct(btcPct)}로 동반 강세.` : ""} 실적 호조와 금리 안정이 랠리를 뒷받침. 과열 징후 모니터링 필요.`,
+      tone: "positive"
+    }
+  }
+
+  // 보합
+  return {
+    emoji: "🔍",
+    headline: "시장 방향 탐색 중 — 관망세 우세",
+    detail: `S&P ${pct(spPct)}, 나스닥 ${pct(nasPct)}로 보합권. ${krw && krw.price > 1400 ? `원/달러 ${fmt(krw.price, 0)}원대 환율 부담 지속.` : ""} 관세 협상 결과와 경제 지표에 따라 방향 결정될 전망.`,
+    tone: "neutral"
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI 토론 생성 — 7개 주제 라운드
 // ═══════════════════════════════════════════════════════════════
 
 function generateDebate(
@@ -83,17 +155,16 @@ function generateDebate(
   const kospi = market.kospi
   const kosdaq = market.kosdaq
   const krw = market.usdkrw
+  const btc = market.btc
+  const eth = market.eth
+  const sol = market.sol
 
   const nvda = stocks.nvda
   const googl = stocks.googl
   const amd = stocks.amd
-  const meta = stocks.meta
-  const amzn = stocks.amzn
-  const tsla = stocks.tsla
   const smh = stocks.smh
   const xle = stocks.xle
   const xlu = stocks.xlu
-  const xlp = stocks.xlp
   const lmt = stocks.lmt
 
   // 상황 플래그
@@ -109,6 +180,9 @@ function generateDebate(
   const krwWeak = (krw?.price ?? 0) > 1450
   const semiWeak = (smh?.changePercent ?? 0) < -1 || (amd?.changePercent ?? 0) < -3
   const defenseStrong = (xle?.changePercent ?? 0) > 0.5 || (lmt?.changePercent ?? 0) > 0.5 || (xlu?.changePercent ?? 0) > 0.3
+  const btcDown = (btc?.changePercent ?? 0) < -2
+  const btcUp = (btc?.changePercent ?? 0) > 2
+  const cryptoCorrelated = usDown && btcDown
 
   const msgs: DebateMessage[] = []
   let id = 0
@@ -116,246 +190,294 @@ function generateDebate(
     msgs.push({ id: String(++id), speaker, name, text, topic })
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 1. 오프닝 — 시장 개관
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 1. 오프닝 ━━━━━━━━━
 
-  add("moderator", "사회자", 
-    `${date} 시장 브리핑을 시작합니다. 오늘 S&P 500 ${fmt(sp?.price)} (${pct(sp?.changePercent)}), 나스닥 ${fmt(nasdaq?.price)} (${pct(nasdaq?.changePercent)}), 다우 ${fmt(dow?.price)} (${pct(dow?.changePercent)})로 마감했습니다. 국내 코스피 ${fmt(kospi?.price)} (${pct(kospi?.changePercent)}), 코스닥 ${fmt(kosdaq?.price)} (${pct(kosdaq?.changePercent)})입니다. 오늘은 6가지 핵심 주제를 집중 토론합니다.`,
+  add("moderator", "사회자",
+    `${date} 시장 브리핑을 시작합니다. S&P 500 ${fmt(sp?.price)} (${pct(sp?.changePercent)}), 나스닥 ${fmt(nasdaq?.price)} (${pct(nasdaq?.changePercent)}), 다우 ${fmt(dow?.price)} (${pct(dow?.changePercent)}). 코스피 ${fmt(kospi?.price)} (${pct(kospi?.changePercent)}), 코스닥 ${fmt(kosdaq?.price)} (${pct(kosdaq?.changePercent)}). ${btc ? `비트코인 $${fmt(btc.price, 0)} (${pct(btc.changePercent)}).` : ""} 오늘 7가지 핵심 주제를 집중 토론합니다.`,
     "opening"
   )
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 2. 지정학·관세 리스크
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 2. 지정학·관세 ━━━━━━━━━
 
   add("moderator", "사회자",
-    "🌍 첫 번째 주제 — 트럼프 관세와 지정학적 리스크입니다. 최근 미국이 캐나다·멕시코 25%, 중국 추가 10% 관세를 발동했고, 철강·알루미늄 25% 보편관세, 반도체·의약품 25% 관세도 예고된 상황입니다.",
+    "🌍 첫 번째 주제 — 트럼프 관세와 지정학적 리스크입니다. 캐나다·멕시코 25%, 중국 추가 10%, 반도체·의약품 25% 관세 예고까지 — 시장의 최대 변수입니다.",
     "geopolitics"
   )
 
   add("bear", "신중론자 🐻",
-    `관세 리스크를 가장 먼저 짚어야 합니다. 트럼프 행정부의 IEEPA 발동은 전례 없는 강도예요. 캐나다·멕시코 25%, 중국 10% 추가에 이어 철강·알루미늄 보편관세, 반도체·의약품에까지 25% 관세가 예고됐습니다. 이건 단순 협상 카드가 아니라 구조적 무역 질서 재편입니다. ${nasdaq && nasdaq.changePercent < -0.3 ? `오늘 나스닥 ${pct(nasdaq.changePercent)} 하락의 상당 부분이 이 불확실성에서 비롯됐다고 봅니다.` : "시장이 아직 관세 충격을 완전히 반영하지 못했을 수 있어요."}`,
+    `관세 리스크를 최우선으로 봐야 합니다. IEEPA 발동은 전례 없는 강도예요. 캐나다·멕시코 25%에 이어 반도체·의약품 25% 관세까지 예고됐는데, 이건 글로벌 공급망의 구조적 재편을 의미합니다. ${nasdaq && nasdaq.changePercent < -0.3 ? `나스닥 ${pct(nasdaq.changePercent)} 하락의 상당 부분이 이 불확실성 때문이에요.` : "시장이 관세 충격을 아직 완전 반영 못했을 수 있습니다."} 러시아-우크라이나, 중동 긴장까지 겹치면 리스크 프리미엄이 더 올라갑니다.`,
     "geopolitics"
   )
 
   add("bull", "낙관론자 🐂",
-    `관세 우려는 인정하지만, 트럼프 1기 때도 마찬가지였습니다. 캐나다·멕시코 관세는 이미 한 달 유예된 전례가 있고, 실제 시행 여부는 협상 진행에 달려 있어요. 시장은 '트럼프 관세 = 협상 지렛대'라는 학습 효과가 있습니다. ${dow && dow.changePercent > 0 ? `다우가 ${pct(dow.changePercent)}로 선방한 것도 시장이 관세를 이미 가격에 반영하고 있다는 증거입니다.` : "과거에도 최악의 관세 시나리오보다 실제는 완화된 결과가 나왔습니다."}`,
+    `관세 우려는 인정하지만, 트럼프 1기 학습효과가 있습니다. 캐나다·멕시코 관세는 이미 유예된 전례가 있고, '관세 = 협상 지렛대'라는 패턴이 반복되고 있어요. ${dow && dow.changePercent > (nasdaq?.changePercent ?? 0) ? `다우가 나스닥 대비 선방한 건 시장이 이미 적응 중이라는 증거입니다.` : "과거에도 최악 시나리오보다 완화된 결과가 나왔어요."} 핵심은 관세가 실제 시행되느냐 여부입니다.`,
     "geopolitics"
   )
 
   add("bear", "신중론자 🐻",
-    `하지만 이번엔 범위가 다릅니다. 반도체와 의약품까지 25% 관세를 예고한 건 처음이에요. 한국·대만·일본 반도체 수출기업에 직격탄이고, 글로벌 공급망 재편 비용이 기업 마진을 압박할 겁니다. 러시아-우크라이나, 중동 긴장까지 겹치면 지정학적 리스크 프리미엄이 더 높아질 수밖에 없습니다.`,
+    `이번엔 범위가 다릅니다. 반도체·의약품 25%는 처음이에요. 한국·대만·일본 반도체 기업에 직격탄이고, 글로벌 공급망 재편 비용이 기업 마진을 압박할 겁니다. '협상용'이라 해도 불확실성 자체가 기업 투자 결정을 지연시키는 실질적 피해입니다.`,
     "geopolitics"
   )
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 3. 기업 실적 — 빅테크 & 반도체
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 3. 기업 실적 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `📊 두 번째 주제 — 기업 실적입니다. ${googl ? `알파벳(구글)이 ${pct(googl.changePercent)} 움직였고,` : ""} ${amd ? `AMD가 ${pct(amd.changePercent)},` : ""} ${nvda ? `엔비디아가 ${pct(nvda.changePercent)}을 기록했습니다.` : "주요 빅테크 실적 시즌이 한창입니다."} AI 투자 사이클의 지속 가능성이 핵심 쟁점입니다.`,
+    `📊 두 번째 주제 — 기업 실적입니다. ${googl ? `알파벳 ${pct(googl.changePercent)},` : ""} ${amd ? `AMD ${pct(amd.changePercent)},` : ""} ${nvda ? `엔비디아 ${pct(nvda.changePercent)}.` : ""} AI 투자 사이클의 지속 가능성이 쟁점입니다.`,
     "earnings"
   )
 
-  // 구글 실적 분석
-  if (googl) {
-    if (googl.changePercent < -2) {
-      add("bear", "신중론자 🐻",
-        `알파벳 실적이 시장 기대에 미치지 못했습니다. ${pct(googl.changePercent)} 하락은 단순 실적 미스가 아니라, AI에 쏟아붓는 천문학적 투자(연간 $900억+ CAPEX)가 정말 수익으로 돌아올지에 대한 의구심을 반영합니다. 클라우드 성장 둔화 시그널이 나온다면 AI 밸류에이션 전체에 재평가 압력이 올 수 있어요.`,
-        "earnings"
-      )
-      add("bull", "낙관론자 🐂",
-        `알파벳 하락은 과도한 기대치 때문이지, 실적 자체가 나쁜 건 아닙니다. 매출은 전년 대비 18% 성장했고, EPS도 컨센서스를 상회했어요. CAPEX 확대는 AI 인프라 선점 투자이고, 구글 검색의 AI 통합이 실제 수익으로 전환되고 있습니다. ${nvda && nvda.changePercent > 0 ? `엔비디아가 ${pct(nvda.changePercent)} 상승한 건 AI 투자 수혜가 실재한다는 증거죠.` : "장기 성장 스토리는 여전히 유효합니다."}`,
-        "earnings"
-      )
-    } else if (googl.changePercent > 2) {
-      add("bull", "낙관론자 🐂",
-        `알파벳이 ${pct(googl.changePercent)}로 강세입니다! AI 투자가 클라우드와 검색 수익으로 전환되고 있다는 증거예요. 시장이 빅테크의 AI 전략에 신뢰를 보내고 있습니다.`,
-        "earnings"
-      )
-    } else {
-      add("bull", "낙관론자 🐂",
-        `알파벳은 연간 매출 $1,000억 이상을 안정적으로 유지하면서 AI 투자를 확대하고 있어요. 구글 검색의 AI 모드가 75M+ DAU를 확보했고, 유튜브 수익도 견조합니다. 현재 밸류에이션은 성장 대비 합리적 수준이에요.`,
-        "earnings"
-      )
-    }
-  }
-
-  // AMD 실적 분석
-  if (amd && amd.changePercent < -3) {
+  if (googl && googl.changePercent < -2) {
     add("bear", "신중론자 🐻",
-      `AMD ${pct(amd.changePercent)} 급락은 무시할 수 없는 신호입니다. 실적은 컨센서스를 넘겼지만, AI 가이던스가 시장 기대에 못 미쳤어요. 엔비디아 독주 체제에서 AMD의 AI 칩 경쟁력에 의문이 제기되는 거죠. ${smh ? `반도체 ETF(SMH)도 ${pct(smh.changePercent)}로 약세인데,` : ""} 반도체 업황 회복 낙관론에 제동이 걸렸습니다.`,
+      `알파벳 ${pct(googl.changePercent)} 하락이 중요한 시그널입니다. 연간 $900억+ CAPEX를 AI에 쏟아붓는데, 클라우드 성장이 기대에 못 미치면 AI 밸류에이션 전체에 재평가 압력이 옵니다. 빅테크 2025년 누적 CAPEX $2,280억 — 이게 정말 수익으로 돌아올까요?`,
       "earnings"
     )
     add("bull", "낙관론자 🐂",
-      `AMD 하락은 기대치가 너무 높았던 탓이에요. 데이터센터 매출이 전년 대비 69% 성장했고, 게이밍·PC 사업도 견조합니다. AI 칩 시장 자체가 커지고 있어서 엔비디아와의 경쟁 구도보다 파이 확대에 주목해야 합니다. 과매도 구간에서 매수 기회가 될 수 있어요.`,
+      `알파벳 하락은 과도한 기대치 탓이지 실적 자체가 나쁜 건 아닙니다. 매출 전년비 18% 성장, EPS 컨센서스 상회. AI 검색이 75M+ DAU 확보했고, CAPEX는 10년 성장 엔진 투자예요. ${nvda && nvda.changePercent > 0 ? `엔비디아 ${pct(nvda.changePercent)} 상승이 AI 수요 실재를 증명합니다.` : ""}`,
       "earnings"
     )
-  } else if (amd) {
-    add("moderator", "사회자",
-      `AMD는 데이터센터 사업 성장이 핵심인데, AI 칩 가이던스에 대한 시장 기대가 매우 높은 상황입니다. ${pct(amd.changePercent)} 움직임이었습니다.`,
+  } else if (googl && googl.changePercent > 2) {
+    add("bull", "낙관론자 🐂",
+      `알파벳 ${pct(googl.changePercent)} 강세! AI 투자가 클라우드·검색 수익으로 전환되는 증거예요. 빅테크의 AI 전략에 시장이 신뢰를 보내고 있습니다.`,
+      "earnings"
+    )
+  } else {
+    add("bull", "낙관론자 🐂",
+      `빅테크 실적은 AI 투자 수익 전환이 핵심 관전 포인트입니다. 구글 AI 검색 75M+ DAU, 유튜브 견조. 엔비디아 CAPEX 수혜는 실적으로 확인되고 있어요.`,
       "earnings"
     )
   }
 
-  // 빅테크 CAPEX 논쟁
+  if (amd && amd.changePercent < -3) {
+    add("bear", "신중론자 🐻",
+      `AMD ${pct(amd.changePercent)} 급락은 경고등입니다. AI 가이던스가 기대 미달 — 엔비디아 독주 체제에서 AMD의 경쟁력에 의문이 제기됐어요. ${smh ? `반도체 ETF(SMH)도 ${pct(smh.changePercent)}.` : ""} 반도체 업황 회복 낙관론에 제동입니다.`,
+      "earnings"
+    )
+    add("bull", "낙관론자 🐂",
+      `AMD 하락은 기대치가 너무 높았던 탓입니다. 데이터센터 매출 전년비 69% 성장, 게이밍·PC 견조. AI 칩 시장 파이 자체가 커지고 있어 과매도 구간에서 매수 기회일 수 있어요.`,
+      "earnings"
+    )
+  }
+
   add("bear", "신중론자 🐻",
-    `빅테크 전체적으로 보면, 메타·마이크로소프트·알파벳의 2025년 누적 CAPEX가 $2,280억을 넘어섭니다. 전년 대비 55% 증가예요. AI 투자 회수 기간이 장기화되면 잉여현금흐름 악화→밸류에이션 재평가가 불가피합니다. 지금 S&P 500 PER이 22배로 코로나 유동성 장세 수준이에요.`,
+    `빅테크 CAPEX 논쟁의 핵심 — 메타·마이크로소프트·알파벳 2025년 누적 $2,280억+, 전년비 55% 증가. AI 투자 회수 장기화 시 잉여현금흐름 악화→밸류에이션 재평가 불가피. S&P 500 PER 22배는 코로나 유동성 장세 수준이에요.`,
     "earnings"
   )
 
   add("bull", "낙관론자 🐂",
-    `CAPEX 우려는 매번 나오지만, 빅테크 캐시플로우가 투자를 충분히 소화하고 있습니다. 알파벳만 봐도 분기 순이익 $340억에 달해요. AI 인프라는 향후 10년의 성장 엔진이고, 지금 투자하지 않으면 경쟁에서 뒤처집니다. ${nvda && nvda.changePercent > 0 ? `엔비디아 ${pct(nvda.changePercent)} 상승이 AI 수요가 실재함을 보여주고 있어요.` : "실제 AI 수요 지표는 견고합니다."}`,
+    `CAPEX 우려는 매번 나오지만 빅테크 캐시플로우가 충분히 소화합니다. 알파벳 분기 순이익 $340억. AI 인프라는 10년 성장 엔진이고, 지금 안 하면 경쟁에서 탈락해요. HBM 가격 +80% 상승이 공급 병목과 실수요를 동시에 증명합니다.`,
     "earnings"
   )
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 4. 금리·환율·달러
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 4. 금리·환율 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `🏛️ 세 번째 주제 — 금리와 환율입니다. ${t10 ? `10년물 금리 ${t10.price.toFixed(2)}% (${pct(t10.changePercent)}),` : ""} ${dollar ? `달러 인덱스 ${fmt(dollar.price, 1)} (${pct(dollar.changePercent)}),` : ""} ${krw ? `원/달러 환율 ${fmt(krw.price, 0)}원 (${pct(krw.changePercent)})입니다.` : ""}`,
+    `🏛️ 세 번째 주제 — 금리와 환율. ${t10 ? `10년물 ${t10.price.toFixed(2)}% (${pct(t10.changePercent)}),` : ""} ${dollar ? `달러 인덱스 ${fmt(dollar.price, 1)} (${pct(dollar.changePercent)}),` : ""} ${krw ? `원/달러 ${fmt(krw.price, 0)}원 (${pct(krw.changePercent)}).` : ""}`,
     "macro"
   )
 
   if (t10) {
     add("bear", "신중론자 🐻",
-      `금리 환경이 여전히 긴축적입니다. 10년물 ${t10.price.toFixed(2)}%는 ${t10.price > 4.5 ? "4.5% 위에서 고착되고 있어 주식 밸류에이션에 심각한 부담입니다." : "높은 수준을 유지하며 연준의 금리 인하 기대를 제한하고 있어요."} 관세 부과에 따른 인플레이션 재가속 우려까지 있어서, 연준이 올해 금리 인하를 2회 이상 할 수 있을지 불투명합니다. ${dollarStrong ? `달러 강세(인덱스 ${fmt(dollar?.price, 1)})가 이머징 마켓 자금 유출을 가속화하고 있어요.` : ""}`,
+      `금리 환경이 긴축적입니다. 10년물 ${t10.price.toFixed(2)}%는 ${t10.price > 4.5 ? "4.5% 위에서 고착 — 주식 밸류에이션에 심각한 부담." : "높은 수준 유지 중."} 관세에 따른 인플레이션 재가속 우려로 연준 금리인하가 올해 2회 가능할지 불투명합니다. ${dollarStrong ? `달러 강세(${fmt(dollar?.price, 1)})가 이머징 자금 유출을 가속화하고,` : ""} ${krwWeak ? `원/달러 ${fmt(krw?.price, 0)}원대는 한국 시장에 추가 부담이에요.` : ""}`,
       "macro"
     )
     add("bull", "낙관론자 🐂",
-      `${t10.changePercent < 0 ? `오늘 금리가 하락세를 보인 건 긍정적 시그널입니다. 재무부가 국채 발행 규모를 유지하기로 해 수급 우려가 완화됐어요.` : "금리가 높긴 하지만 시장은 이미 적응하고 있습니다."} 핵심은 연준의 방향성인데, 고용 시장 둔화 시그널이 나오면 하반기 금리 인하 가능성이 높아집니다. ${krw ? `원/달러 ${fmt(krw.price, 0)}원은 한국 수출기업의 가격 경쟁력을 높여주는 측면도 있어요.` : ""}`,
+      `${t10.changePercent < 0 ? "오늘 금리 하락은 긍정 시그널 —" : "금리가 높지만"} 시장은 이미 적응 중입니다. 고용 둔화 시그널이 나오면 하반기 금리인하 가능성이 높아져요. ${krw ? `원/달러 ${fmt(krw.price, 0)}원은 수출기업 원화환산 실적에 오히려 긍정적인 면도 있습니다.` : ""} 관세 인플레 우려는 일시적일 가능성이 높아요.`,
       "macro"
     )
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 5. 원자재·에너지·섹터 로테이션
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 5. 원자재·에너지 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `⛽ 네 번째 주제 — 원자재와 에너지입니다. ${gold ? `금 $${fmt(gold.price)} (${pct(gold.changePercent)}),` : ""} ${oil ? `WTI $${fmt(oil.price)} (${pct(oil.changePercent)})입니다.` : ""} ${defenseStrong ? " 방어주와 에너지 섹터의 상대적 강세도 주목됩니다." : ""}`,
+    `⛽ 네 번째 주제 — 원자재·에너지. ${gold ? `금 $${fmt(gold.price)} (${pct(gold.changePercent)}),` : ""} ${oil ? `WTI $${fmt(oil.price)} (${pct(oil.changePercent)}).` : ""} ${defenseStrong ? " 방어주·에너지 섹터 상대 강세 주목." : ""}`,
     "commodity"
   )
 
   if (goldUp) {
     add("bear", "신중론자 🐻",
-      `금 가격 상승(${pct(gold?.changePercent)})은 시장의 공포를 반영합니다. 지정학적 불안, 인플레이션 헤지, 중앙은행의 금 매수 트렌드까지 — 안전자산 수요가 구조적으로 증가하고 있어요. 이건 주식시장의 리스크 프리미엄이 높아졌다는 의미입니다.`,
-      "commodity"
-    )
-  } else if (gold) {
-    add("moderator", "사회자",
-      `금은 $${fmt(gold.price)}에서 안정세를 보이고 있습니다. 안전자산 수요와 달러 강세가 상충하는 구간이에요.`,
+      `금 상승(${pct(gold?.changePercent)})은 안전자산 선호 심리 확대 — 지정학 불안, 인플레 헤지, 중앙은행 금 매수 트렌드. 리스크 프리미엄 상승의 증거입니다.`,
       "commodity"
     )
   }
 
   if (oilDown) {
     add("bear", "신중론자 🐻",
-      `유가 하락(${pct(oil?.changePercent)})은 글로벌 수요 둔화 시그널로 읽어야 합니다. 관세 전쟁이 교역량을 줄이면 에너지 수요도 위축됩니다. 한국처럼 에너지 수입 의존도 높은 나라엔 양날의 검이에요 — 원가는 내려가지만, 수출 둔화가 더 큰 문제죠.`,
+      `유가 하락(${pct(oil?.changePercent)})은 글로벌 수요 둔화 시그널. 관세가 교역량을 줄이면 에너지 수요도 위축됩니다.`,
       "commodity"
     )
     add("bull", "낙관론자 🐂",
-      `유가 하락은 기업과 소비자에게 긍정적입니다. 에너지 비용 하락→소비 여력 증가→경기 지지 효과가 있어요. 과도한 경기 침체 우려보다 실질 소비 데이터를 봐야 합니다.`,
+      `유가 하락은 기업·소비자에게 긍정적 — 에너지 비용↓ → 소비 여력↑ → 경기 지지. 과도한 침체 우려보다 실질 소비 데이터를 봐야 합니다.`,
       "commodity"
     )
   } else if (oilUp) {
     add("bull", "낙관론자 🐂",
-      `유가 상승(${pct(oil?.changePercent)})은 글로벌 수요가 살아있다는 반증입니다. ${xle ? `에너지 섹터(XLE)가 ${pct(xle.changePercent)}로 강세인 것도` : "에너지주의 강세도"} 경기 침체 시나리오가 과장됐음을 시사해요.`,
-      "commodity"
-    )
-    add("bear", "신중론자 🐻",
-      `유가 상승이 인플레이션 재가속으로 이어질 수 있다는 점도 고려해야 합니다. 연준의 금리 인하 여지를 더 좁히는 요인이에요.`,
+      `유가 상승(${pct(oil?.changePercent)})은 글로벌 수요가 살아있다는 반증. ${xle ? `에너지 섹터(XLE) ${pct(xle.changePercent)} 강세도` : "에너지주 강세도"} 경기침체 시나리오가 과장됐음을 시사해요.`,
       "commodity"
     )
   }
 
-  // 섹터 로테이션
   if (defenseStrong) {
     add("moderator", "사회자",
-      `${xle ? `에너지 섹터 ${pct(xle.changePercent)},` : ""} ${xlu ? `유틸리티 ${pct(xlu.changePercent)},` : ""} ${lmt ? `록히드마틴 ${pct(lmt.changePercent)}` : ""} — 방어주와 가치주로의 섹터 로테이션 신호가 보입니다. ${dow && dow.changePercent > (nasdaq?.changePercent ?? 0) ? "다우가 나스닥 대비 선방한 것도 같은 맥락이에요." : ""}`,
+      `${xle ? `에너지 ${pct(xle.changePercent)},` : ""} ${xlu ? `유틸리티 ${pct(xlu.changePercent)},` : ""} ${lmt ? `록히드마틴 ${pct(lmt.changePercent)}` : ""} — 방어주·가치주 로테이션 신호. ${dow && dow.changePercent > (nasdaq?.changePercent ?? 0) ? "다우 > 나스닥 선방도 같은 맥락." : ""}`,
       "commodity"
     )
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 6. 한국 시장 특화 분석
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 6. 코인·가상자산 (NEW) ━━━━━━━━━
 
   add("moderator", "사회자",
-    `🇰🇷 다섯 번째 주제 — 한국 시장입니다. ${kospi ? `코스피 ${fmt(kospi.price)} (${pct(kospi.changePercent)}),` : ""} ${kosdaq ? `코스닥 ${fmt(kosdaq.price)} (${pct(kosdaq.changePercent)})입니다.` : ""} ${krw ? `원/달러 환율 ${fmt(krw.price, 0)}원.` : ""} 외국인 순매도와 정치적 불안정도 변수입니다.`,
+    `₿ 다섯 번째 주제 — 코인과 가상자산입니다. ${btc ? `비트코인 $${fmt(btc.price, 0)} (${pct(btc.changePercent)}),` : ""} ${eth ? `이더리움 $${fmt(eth.price, 0)} (${pct(eth.changePercent)}),` : ""} ${sol ? `솔라나 $${fmt(sol.price, 1)} (${pct(sol.changePercent)}).` : ""} 주식 시장과의 상관관계가 핵심 쟁점입니다.`,
+    "crypto"
+  )
+
+  if (cryptoCorrelated) {
+    // 미국주식 & 코인 동반 하락
+    add("bear", "신중론자 🐻",
+      `오늘 비트코인 ${pct(btc?.changePercent)}로 주식과 동반 하락 — 이게 핵심입니다. ETF 기관자금 유입 이후 비트코인-나스닥 상관계수가 0.4~0.6으로 높아졌어요. '디지털 금' 역할은 약화됐고, 위험자산 회피 시 함께 빠집니다. 분산 효과를 기대하고 코인을 편입하면 오히려 하방 리스크가 증폭돼요.`,
+      "crypto"
+    )
+    add("bull", "낙관론자 🐂",
+      `동반 하락은 단기 상관이지 구조적 관계가 아닙니다. 비트코인-S&P 상관계수는 -0.3~0.6까지 변동폭이 크고, 금리인하 사이클 진입 시 상관이 낮아지는 패턴이 있어요. ${btc ? `$${fmt(btc.price, 0)} 수준은` : "현재 가격대는"} 장기 CAGR 200%(5년) 관점에서 여전히 매력적. 다만 포트폴리오 5~10% 이내로 비중 조절이 핵심입니다.`,
+      "crypto"
+    )
+  } else if (btcDown) {
+    // 코인만 약세
+    add("bear", "신중론자 🐻",
+      `비트코인 ${pct(btc?.changePercent)} 하락 — 관세 불확실성과 달러 강세가 위험자산 전반을 압박하고 있어요. 코인 시장 거래량 감소 추세도 경고 신호입니다. 변동성이 주식의 2배인 자산을 굳이 편입할 이유가 있을까요?`,
+      "crypto"
+    )
+    add("bull", "낙관론자 🐂",
+      `조정은 건강한 시장에서 나타나는 현상입니다. ${btc ? `비트코인 $${fmt(btc.price, 0)}은` : "현재 가격은"} 트럼프 정부의 친코인 정책(비트코인 전략적 비축, 규제 완화)이라는 구조적 호재가 있어요. ${sol ? `솔라나 등 AI+블록체인 융합 테마도 장기 성장성이 있습니다.` : ""} 공포에 매도하면 기회를 놓칩니다.`,
+      "crypto"
+    )
+  } else if (btcUp) {
+    // 코인 강세
+    add("bull", "낙관론자 🐂",
+      `비트코인 ${pct(btc?.changePercent)} 상승! ${eth ? `이더리움도 ${pct(eth.changePercent)}로 동반 강세.` : ""} ETF 자금 유입이 지속되고, 트럼프 정부의 친코인 정책이 장기 지지선을 높이고 있어요. 포트폴리오에 5~10% 비중으로 위험자산 노출을 늘릴 시점입니다.`,
+      "crypto"
+    )
+    add("bear", "신중론자 🐻",
+      `코인 랠리에 과도하게 올라탈 필요는 없습니다. 주식 대비 변동성 2배 — 상승할 때 좋아 보이지만 하락 시 4~5% 급락이 일상입니다. 한국 투자자라면 코인보다 저평가된 코스피 가치주가 더 효율적인 선택일 수 있어요.`,
+      "crypto"
+    )
+  } else {
+    // 코인 보합
+    add("bull", "낙관론자 🐂",
+      `코인 시장은 비교적 안정적 흐름입니다. ${btc ? `비트코인 $${fmt(btc.price, 0)}은` : ""} 기관 ETF 유입과 트럼프 친코인 정책으로 하방이 지지되고 있어요. 장기 관점에서 포트폴리오 5% 내외 편입은 합리적입니다.`,
+      "crypto"
+    )
+    add("bear", "신중론자 🐻",
+      `안정적으로 보이지만, 주식-코인 상관성이 높아진 지금 분산 효과는 제한적입니다. 같은 리스크를 2배 변동성으로 감수하는 셈이에요. 주식 포트가 이미 성장주 중심이라면 코인 비중은 최소화하고, 오히려 금이나 채권으로 진짜 분산을 추구하세요.`,
+      "crypto"
+    )
+  }
+
+  // ━━━━━━━━━ 7. 한국 시장 ━━━━━━━━━
+
+  add("moderator", "사회자",
+    `🇰🇷 여섯 번째 주제 — 한국 시장. ${kospi ? `코스피 ${fmt(kospi.price)} (${pct(kospi.changePercent)}),` : ""} ${kosdaq ? `코스닥 ${fmt(kosdaq.price)} (${pct(kosdaq.changePercent)}).` : ""} ${krw ? `원/달러 ${fmt(krw.price, 0)}원.` : ""} 외국인 매도·정치 불안정·반도체 관세가 변수입니다.`,
     "korea"
   )
 
   if (krDown) {
     add("bear", "신중론자 🐻",
-      `한국 시장이 다중 악재에 시달리고 있습니다. 첫째, ${krw && krwWeak ? `원/달러 ${fmt(krw.price, 0)}원대의 원화 약세가 외국인 투자 심리를 크게 위축시키고 있어요. 1,450원 돌파 시 추가 이탈 가속 가능성이 큽니다.` : "달러 강세에 따른 외국인 순매도 압력이 큽니다."} 둘째, 반도체 관세 25% 예고는 삼성·SK에 직격탄이에요. 셋째, 정치 불안정이 기업 지배구조 개선에 대한 기대를 후퇴시키면서 코리아 디스카운트를 심화시키고 있습니다.`,
+      `한국이 다중 악재에 시달리고 있습니다. ${krwWeak ? `①원/달러 ${fmt(krw?.price, 0)}원대 원화 약세로 외국인 이탈 가속(순매도 1조+ 예상),` : "①외국인 순매도 압력,"} ②반도체 관세 25% 예고는 삼성·SK 직격탄, ③정치 불안정이 지배구조 개선 기대를 후퇴시키며 코리아 디스카운트 심화. 악재의 삼중고입니다.`,
       "korea"
     )
     add("bull", "낙관론자 🐂",
-      `한국 시장의 단기 상황은 어렵지만, 밸류에이션 매력이 매우 큽니다. ${kospi ? `코스피 ${fmt(kospi.price)}은 PBR 0.9배 수준으로 역사적 하단에 가까워요.` : ""} 한국은 글로벌 AI 투자 사이클의 핵심 공급자입니다 — HBM, 파운드리, 장비 모두 한국이 빠질 수 없어요. ${krw && krwWeak ? "환율이 높을수록 수출기업 원화 환산 실적은 오히려 좋아집니다." : ""} 저PER 가치주 중심으로 선별적 접근이 유효합니다.`,
+      `단기 상황은 어렵지만 밸류에이션이 매우 매력적입니다. ${kospi ? `코스피 ${fmt(kospi.price)}은 PBR 0.9배, 역사적 하단.` : ""} 한국은 AI 투자 사이클의 핵심 공급자 — HBM, 파운드리, 장비 모두 한국이 빠질 수 없어요. ${krwWeak ? "환율이 높을수록 수출 실적은 오히려 개선됩니다." : ""} 저PER 가치주 선별 매수 유효.`,
       "korea"
     )
   } else {
     add("bull", "낙관론자 🐂",
-      `한국 시장은 글로벌 AI 사이클의 핵심 축입니다. HBM 메모리, 파운드리, 반도체 장비 — 미국 빅테크의 CAPEX 확대가 결국 한국 기업 매출로 이어져요. ${kospi ? `코스피 ${fmt(kospi.price)} 수준에서` : ""} PBR 기준 저평가 매력이 분명합니다.`,
+      `한국은 AI 사이클의 핵심 축입니다. HBM, 파운드리 — 빅테크 CAPEX 확대가 한국 기업 매출로 이어져요. ${kospi ? `코스피 ${fmt(kospi.price)}` : "현재 수준에서"} PBR 기준 저평가 매력 분명.`,
       "korea"
     )
     add("bear", "신중론자 🐻",
-      `코리아 디스카운트의 근본 원인인 지배구조 문제와 지정학적 리스크(북한, 한중 관계)는 여전합니다. ${krw ? `원/달러 ${fmt(krw.price, 0)}원대 환율도 외국인 투자자에겐 환차손 리스크예요.` : ""} 반도체 관세 리스크까지 반영하면 보수적 접근이 필요합니다.`,
+      `코리아 디스카운트 근본 원인(지배구조, 지정학)은 변함없습니다. ${krw ? `원/달러 ${fmt(krw.price, 0)}원대 환율도 외국인에겐 환차손 리스크.` : ""} 반도체 관세까지 반영하면 보수적 접근 필요.`,
       "korea"
     )
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 7. 투자 전략 제안
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 8. 투자 전략 ━━━━━━━━━
 
   add("moderator", "사회자",
-    "💼 마지막 주제 — 투자 전략입니다. 오늘 논의를 종합해서 각자의 전략을 제안해 주세요.",
+    "💼 마지막 주제 — 투자 전략. 오늘 논의를 종합한 각자의 전략을 제안해 주세요.",
     "strategy"
   )
 
   if (veryHighVix) {
     add("bear", "신중론자 🐻",
-      `VIX ${fmt(vix?.price, 1)}은 극도의 불안 구간입니다. 현금 비중 50% 이상 유지, 나머지는 금 ETF(GLD), 단기 국채(SHY), 배당주(XLU, XLP) 중심으로 방어하세요. 관세 불확실성이 해소될 때까지 공격적 매수는 위험합니다. 분할 매수도 3개월 이상 간격을 두고 천천히.`,
+      `VIX ${fmt(vix?.price, 1)}은 극도의 불안 구간. ①현금 50%+ 유지, ②금 ETF(GLD)·단기국채(SHY)·배당주(XLU, XLP) 방어, ③관세 불확실성 해소까지 공격적 매수 금지. 코인도 리스크 축소. 분할매수는 3개월 이상 간격으로 천천히.`,
       "strategy"
     )
     add("bull", "낙관론자 🐂",
-      `공포가 극대일 때가 역사적 최고의 매수 타이밍이었습니다. VIX 30+ 이후 12개월 평균 수익률은 +20%가 넘어요. 다만 한 번에 올인은 금물 — 5회 분할 매수로 접근하되, 실적이 검증된 빅테크와 AI 인프라주 위주로. 방산(LMT)과 에너지(XLE)도 지정학 헤지로 일부 편입하세요.`,
+      `공포 극대가 역사적 최고의 매수 타이밍입니다. VIX 30+ 이후 12개월 평균 수익률 +20%. 5회 분할매수로 ①빅테크·AI 인프라(NVDA, AVGO), ②방산(LMT)·에너지(XLE) 지정학 헤지, ③한국 저PER 가치주. 비트코인은 5% 이내 유지.`,
       "strategy"
     )
   } else if (highVix) {
     add("bull", "낙관론자 🐂",
-      `변동성이 높아진 만큼 기회도 커졌습니다. 추천 전략: ①AI 수혜주(NVDA, AVGO) 분할 매수, ②관세 내성이 강한 미국 내수주(서비스, 헬스케어), ③에너지·방산으로 분산. 한국은 저PER 가치주와 HBM 관련주 선별 매수. 현금 20% 유지로 추가 하락에 대비.`,
+      `변동성 확대 = 기회 확대. ①AI 수혜주(NVDA, AVGO) 분할매수, ②관세 내성 강한 미국 내수주(서비스·헬스케어), ③에너지·방산 분산. 한국은 저PER 가치주·HBM 관련주. 코인은 비트코인 5% 이내. 현금 20% 유지로 추가 하락 대비.`,
       "strategy"
     )
     add("bear", "신중론자 🐻",
-      `현금 30-40% 유지가 핵심입니다. ①금 ETF(GLD)로 인플레·지정학 헤지, ②배당주(유틸리티, 필수소비재)로 하방 방어, ③채권(7~10년물) 비중 확대. 관세·금리·실적 세 가지 불확실성이 모두 해소될 때까지 공격 비중을 줄이세요. 미주도감에서 올그린 종목을 체크하면서 진짜 우량주만 관찰 리스트에 넣으세요.`,
+      `현금 30~40% 유지가 핵심. ①금 ETF(GLD) 인플레·지정학 헤지, ②배당주(유틸리티·필수소비재) 하방방어, ③채권(7~10년물) 비중 확대. 관세·금리·실적 세 불확실성 해소까지 공격 비중 축소. 미주도감 올그린 종목 체크하며 진짜 우량주만 관찰.`,
       "strategy"
     )
   } else {
     add("bull", "낙관론자 🐂",
-      `비교적 안정적 환경에서 성장주에 집중할 때입니다. ①AI 인프라 핵심(NVDA, AVGO, 데이터센터 전력), ②빅테크 실적 개선주, ③한국 반도체·HBM 관련주. 다만 관세 리스크에 대비해 에너지(XLE), 방산(LMT)으로 10~15% 분산하고, 미주도감 올그린 종목도 체크해보세요!`,
+      `안정적 환경에서 성장주 집중. ①AI 인프라(NVDA, AVGO, 데이터센터 전력), ②빅테크 실적개선주, ③한국 반도체·HBM 관련주. 관세 헤지로 에너지(XLE)·방산(LMT) 10~15% 분산. 비트코인 5~10% 편입 고려. 미주도감 올그린 종목도 체크하세요!`,
       "strategy"
     )
     add("bear", "신중론자 🐻",
-      `변동성이 낮을 때 리스크 관리를 준비하는 게 현명합니다. ①과도한 밸류에이션(PER 30배+) 종목은 일부 차익실현, ②섹터 분산(기술 비중 40% 이하), ③금·채권 비중 15~20% 확보. 트럼프 관세 확대와 금리 변동 시나리오별 포트폴리오 스트레스 테스트도 해두세요.`,
+      `변동성이 낮을 때 리스크 관리 준비. ①PER 30배+ 종목 일부 차익실현, ②섹터 분산(기술 비중 40% 이하), ③금·채권 15~20%. 코인은 변동성 2배이므로 비중 최소화. 트럼프 관세 확대 시나리오별 포트폴리오 스트레스 테스트 해두세요.`,
       "strategy"
     )
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 마무리
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━ 마무리 ━━━━━━━━━
+
+  // 종합 한마디 (핵심 요약)
+  const summaryPoints: string[] = []
+  summaryPoints.push("①관세 불확실성이 시장의 최대 변수")
+  summaryPoints.push("②빅테크 AI CAPEX 회수 가능성이 실적 쟁점")
+  if (btc) summaryPoints.push(`③비트코인 $${fmt(btc.price, 0)} — 주식 상관↑로 분산효과 제한적`)
+  summaryPoints.push(`${btc ? "④" : "③"}한국은 환율·정치·관세 삼중고 속 밸류에이션 매력`)
 
   add("moderator", "사회자",
-    `깊이 있는 토론이었습니다. 오늘의 핵심: ①관세 불확실성이 시장의 최대 변수, ②빅테크 실적은 AI CAPEX 회수 가능성이 쟁점, ③한국은 환율·정치·관세 삼중고 속 밸류에이션 매력. 다양한 관점을 참고하되, 자신의 투자 원칙을 지키세요. 내일 또 만나겠습니다! 📊`,
+    `오늘의 핵심 요약: ${summaryPoints.join(", ")}. 다양한 관점을 참고하되, 자신의 투자 원칙을 지키세요. 내일 또 만나겠습니다! 📊`,
     "opening"
   )
 
   return msgs
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 종합 한마디 카드 컴포넌트
+// ═══════════════════════════════════════════════════════════════
+
+function SummaryVerdictCard({ verdict }: { verdict: { emoji: string; headline: string; detail: string; tone: string } }) {
+  const toneStyles: Record<string, string> = {
+    danger: "from-red-500 to-orange-500 text-white",
+    caution: "from-amber-500 to-yellow-500 text-white",
+    neutral: "from-slate-500 to-gray-500 text-white",
+    positive: "from-emerald-500 to-teal-500 text-white",
+  }
+  const bgStyle = toneStyles[verdict.tone] || toneStyles.neutral
+
+  return (
+    <Card className="overflow-hidden">
+      <div className={`bg-gradient-to-r ${bgStyle} p-4`}>
+        <div className="flex items-start gap-3">
+          <span className="text-2xl flex-shrink-0 mt-0.5">{verdict.emoji}</span>
+          <div className="min-w-0">
+            <h3 className="font-bold text-sm leading-tight mb-1.5">{verdict.headline}</h3>
+            <p className="text-xs leading-relaxed opacity-95">{verdict.detail}</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -393,7 +515,7 @@ function PriceCard({ data }: { data: MarketQuote }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 토픽 배지 컴포넌트
+// 토픽 배지 / 토론 말풍선
 // ═══════════════════════════════════════════════════════════════
 
 function TopicBadge({ topic }: { topic?: string }) {
@@ -406,10 +528,6 @@ function TopicBadge({ topic }: { topic?: string }) {
     </span>
   )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// 토론 말풍선 컴포넌트
-// ═══════════════════════════════════════════════════════════════
 
 function DebateBubble({ message, isNew, showTopic }: { message: DebateMessage; isNew: boolean; showTopic: boolean }) {
   const config = {
@@ -432,7 +550,6 @@ function DebateBubble({ message, isNew, showTopic }: { message: DebateMessage; i
       icon: <MessageCircle className="h-3.5 w-3.5 text-white" />,
     },
   }
-
   const c = config[message.speaker]
 
   if (message.speaker === "moderator") {
@@ -441,9 +558,7 @@ function DebateBubble({ message, isNew, showTopic }: { message: DebateMessage; i
         {showTopic && <TopicBadge topic={message.topic} />}
         <div className={`w-full rounded-xl border p-3.5 ${c.bg}`}>
           <div className="flex items-center gap-2 mb-1.5">
-            <div className={`w-6 h-6 rounded-full ${c.avatar} flex items-center justify-center flex-shrink-0`}>
-              {c.icon}
-            </div>
+            <div className={`w-6 h-6 rounded-full ${c.avatar} flex items-center justify-center flex-shrink-0`}>{c.icon}</div>
             <span className={`text-xs font-bold ${c.nameColor}`}>{message.name}</span>
           </div>
           <p className="text-sm text-foreground/80 leading-relaxed">{message.text}</p>
@@ -455,9 +570,7 @@ function DebateBubble({ message, isNew, showTopic }: { message: DebateMessage; i
   return (
     <div className={`flex flex-col items-start gap-2 ${isNew ? "animate-in fade-in slide-in-from-bottom-2 duration-500" : ""}`}>
       <div className="flex items-start gap-2.5 w-full">
-        <div className={`w-8 h-8 rounded-full ${c.avatar} flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>
-          {c.icon}
-        </div>
+        <div className={`w-8 h-8 rounded-full ${c.avatar} flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>{c.icon}</div>
         <div className="flex-1 min-w-0">
           <span className={`text-xs font-bold ${c.nameColor} mb-1 block`}>{message.name}</span>
           <div className={`rounded-2xl rounded-tl-md border p-3.5 ${c.bg}`}>
@@ -486,6 +599,8 @@ export default function DebatePage() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [showAllMarkets, setShowAllMarkets] = useState(false)
   const [showStocks, setShowStocks] = useState(false)
+  const [showCrypto, setShowCrypto] = useState(false)
+  const [summaryVerdict, setSummaryVerdict] = useState<ReturnType<typeof generateSummaryVerdict> | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   const handleShare = async () => {
@@ -505,6 +620,7 @@ export default function DebatePage() {
     setMessages([])
     setVisibleCount(0)
     setIsStreaming(false)
+    setSummaryVerdict(null)
 
     try {
       const res = await fetch("/api/debate")
@@ -514,6 +630,10 @@ export default function DebatePage() {
       setStockData(data.stockData)
       setDate(data.date)
 
+      // 종합 한마디 생성
+      setSummaryVerdict(generateSummaryVerdict(data.marketData, data.stockData || {}))
+
+      // 토론 생성
       const debate = generateDebate(data.marketData, data.stockData || {}, data.date)
       setMessages(debate)
       setIsStreaming(true)
@@ -527,7 +647,6 @@ export default function DebatePage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // 스트리밍 효과
   useEffect(() => {
     if (!isStreaming || visibleCount >= messages.length) {
       if (visibleCount >= messages.length && isStreaming) setIsStreaming(false)
@@ -541,13 +660,12 @@ export default function DebatePage() {
     if (visibleCount > 2) chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [visibleCount])
 
-  // 시세 카테고리
   const usMarkets = ["sp500", "nasdaq", "dow"]
   const krMarkets = ["kospi", "kosdaq", "usdkrw"]
   const macroMarkets = ["vix", "treasury10Y", "dollarIndex", "gold", "oil"]
+  const cryptoMarkets = ["btc", "eth", "sol"]
   const keyStockKeys = ["nvda", "googl", "amd", "meta", "amzn", "tsla", "avgo", "smh", "xle", "lmt"]
 
-  // 토픽 전환 감지 (배지 표시용)
   const getShowTopic = (idx: number): boolean => {
     if (idx === 0) return true
     const prevTopic = messages[idx - 1]?.topic
@@ -563,16 +681,12 @@ export default function DebatePage() {
     <div className="min-h-screen bg-background pb-20">
       <HeaderSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
           <Button variant="ghost" size="icon" className="rounded-full flex-shrink-0" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div
-            className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors"
-            onClick={() => setIsSearchOpen(true)}
-          >
+          <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-full bg-muted/50 border cursor-pointer hover:bg-muted transition-colors" onClick={() => setIsSearchOpen(true)}>
             <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="text-sm text-muted-foreground truncate">종목 검색</span>
           </div>
@@ -596,6 +710,9 @@ export default function DebatePage() {
         </div>
         <p className="text-xs text-muted-foreground">{date}</p>
 
+        {/* ★ 종합 한마디 카드 — 상단 고정 */}
+        {summaryVerdict && <SummaryVerdictCard verdict={summaryVerdict} />}
+
         {/* 토론 주제 프리뷰 */}
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(TOPIC_CONFIG).filter(([k]) => k !== "opening").map(([key, cfg]) => (
@@ -611,7 +728,6 @@ export default function DebatePage() {
           <div className="px-4 py-3 border-b bg-muted/30">
             <h2 className="text-sm font-bold">📈 오늘의 시세</h2>
           </div>
-
           <div className="px-4 divide-y divide-border/50">
             <div className="py-1">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">US Market</span>
@@ -621,6 +737,12 @@ export default function DebatePage() {
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">KR Market</span>
               {krMarkets.map(key => marketData[key] && <PriceCard key={key} data={marketData[key]} />)}
             </div>
+            {showCrypto && (
+              <div className="py-1">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Crypto</span>
+                {cryptoMarkets.map(key => marketData[key] && <PriceCard key={key} data={marketData[key]} />)}
+              </div>
+            )}
             {showAllMarkets && (
               <div className="py-1">
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Macro</span>
@@ -634,19 +756,16 @@ export default function DebatePage() {
               </div>
             )}
           </div>
-
           <div className="flex border-t divide-x divide-border">
-            <button
-              onClick={() => setShowAllMarkets(!showAllMarkets)}
-              className="flex-1 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1"
-            >
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllMarkets ? "rotate-180" : ""}`} />
-              {showAllMarkets ? "매크로 접기" : "매크로 지표"}
+            <button onClick={() => setShowCrypto(!showCrypto)} className="flex-1 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showCrypto ? "rotate-180" : ""}`} />
+              {showCrypto ? "코인 접기" : "코인"}
             </button>
-            <button
-              onClick={() => setShowStocks(!showStocks)}
-              className="flex-1 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1"
-            >
+            <button onClick={() => setShowAllMarkets(!showAllMarkets)} className="flex-1 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllMarkets ? "rotate-180" : ""}`} />
+              {showAllMarkets ? "매크로 접기" : "매크로"}
+            </button>
+            <button onClick={() => setShowStocks(!showStocks)} className="flex-1 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1">
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showStocks ? "rotate-180" : ""}`} />
               {showStocks ? "종목 접기" : "주요 종목"}
             </button>
@@ -662,26 +781,15 @@ export default function DebatePage() {
                 오늘의 시장 토론
               </h2>
               <div className="flex items-center gap-3 text-[10px]">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-400" /> 낙관론
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-blue-400" /> 신중론
-                </span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400" /> 낙관론</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400" /> 신중론</span>
               </div>
             </div>
           </div>
-
           <div className="p-4 space-y-4">
             {messages.slice(0, visibleCount).map((msg, i) => (
-              <DebateBubble
-                key={msg.id}
-                message={msg}
-                isNew={i === visibleCount - 1 && isStreaming}
-                showTopic={getShowTopic(i)}
-              />
+              <DebateBubble key={msg.id} message={msg} isNew={i === visibleCount - 1 && isStreaming} showTopic={getShowTopic(i)} />
             ))}
-
             {isStreaming && visibleCount < messages.length && (
               <div className="flex items-center gap-2 py-2">
                 <div className="flex gap-1">
@@ -696,7 +804,6 @@ export default function DebatePage() {
           </div>
         </Card>
 
-        {/* 면책 조항 */}
         <p className="text-[11px] text-muted-foreground text-center leading-relaxed pt-2">
           본 토론은 AI가 시장 데이터를 기반으로 생성한 콘텐츠입니다.<br />
           투자 권유가 아니며, 투자 판단의 책임은 본인에게 있습니다.
@@ -728,9 +835,9 @@ function LoadingSkeleton() {
             <div className="absolute -left-6 top-0 text-3xl animate-pulse" style={{ animationDelay: "200ms" }}>🐻</div>
           </div>
           <h2 className="text-lg font-bold mb-2">시장 데이터를 분석하고 있어요</h2>
-          <p className="text-sm text-muted-foreground">AI 분석가들이 6개 주제 토론을 준비하고 있습니다...</p>
+          <p className="text-sm text-muted-foreground">AI 분석가들이 7개 주제 토론을 준비하고 있습니다...</p>
           <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
-            {["지정학·관세", "기업 실적", "금리·환율", "원자재·에너지", "한국 시장", "투자 전략"].map((t, i) => (
+            {["지정학·관세", "기업 실적", "금리·환율", "원자재·에너지", "코인·가상자산", "한국 시장", "투자 전략"].map((t, i) => (
               <span key={t} className="text-[10px] px-2 py-1 rounded-full bg-muted text-muted-foreground animate-pulse" style={{ animationDelay: `${i * 200}ms` }}>
                 {t}
               </span>
