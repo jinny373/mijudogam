@@ -142,7 +142,8 @@ function generateSummaryVerdict(
 function generateDebate(
   market: Record<string, MarketQuote>,
   stocks: Record<string, MarketQuote>,
-  date: string
+  date: string,
+  lastUpdated?: string
 ): DebateMessage[] {
   const sp = market.sp500
   const nasdaq = market.nasdaq
@@ -166,6 +167,17 @@ function generateDebate(
   const xle = stocks.xle
   const xlu = stocks.xlu
   const lmt = stocks.lmt
+
+  // ── 시간 기준 라벨 생성 ──
+  // KST 기준으로 미국 장 상태를 판별해서 각 주제별 데이터 시점을 표시
+  const now = lastUpdated ? new Date(lastUpdated) : new Date()
+  const kstHour = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" })).getHours()
+  // 미국 장: KST 23:30~06:00 (서머타임 22:30~05:00)
+  // KST 06시 이후 ~ 23시 이전이면 미국 장 마감 상태
+  const usMarketClosed = kstHour >= 6 && kstHour < 22
+  const usTimeLabel = usMarketClosed ? "어젯밤 미국 장 마감 기준" : "미국 장 실시간"
+  const krTimeLabel = "오늘 한국 장 마감 기준"
+  const cryptoTimeLabel = "현재 실시간 시세"
 
   // 상황 플래그
   const usDown = (sp?.changePercent ?? 0) < -0.3 || (nasdaq?.changePercent ?? 0) < -0.3
@@ -193,7 +205,7 @@ function generateDebate(
   // ━━━━━━━━━ 1. 오프닝 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `${date} 시장 브리핑을 시작합니다. S&P 500 ${fmt(sp?.price)} (${pct(sp?.changePercent)}), 나스닥 ${fmt(nasdaq?.price)} (${pct(nasdaq?.changePercent)}), 다우 ${fmt(dow?.price)} (${pct(dow?.changePercent)}). 코스피 ${fmt(kospi?.price)} (${pct(kospi?.changePercent)}), 코스닥 ${fmt(kosdaq?.price)} (${pct(kosdaq?.changePercent)}). ${btc ? `비트코인 $${fmt(btc.price, 0)} (${pct(btc.changePercent)}).` : ""} 오늘 7가지 핵심 주제를 집중 토론합니다.`,
+    `${date} 시장 브리핑을 시작합니다. ${usMarketClosed ? "미국은 어젯밤 마감가, 한국은 오늘 장 마감가, 코인은 실시간 기준입니다." : "미국 장이 열려 있어 실시간 시세를 반영합니다."} S&P 500 ${fmt(sp?.price)} (${pct(sp?.changePercent)}), 나스닥 ${fmt(nasdaq?.price)} (${pct(nasdaq?.changePercent)}), 다우 ${fmt(dow?.price)} (${pct(dow?.changePercent)}). 코스피 ${fmt(kospi?.price)} (${pct(kospi?.changePercent)}), 코스닥 ${fmt(kosdaq?.price)} (${pct(kosdaq?.changePercent)}). ${btc ? `비트코인 $${fmt(btc.price, 0)} (${pct(btc.changePercent)}).` : ""} 오늘 7가지 핵심 주제를 집중 토론합니다.`,
     "opening"
   )
 
@@ -222,7 +234,7 @@ function generateDebate(
   // ━━━━━━━━━ 3. 기업 실적 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `📊 두 번째 주제 — 기업 실적입니다. ${googl ? `알파벳 ${pct(googl.changePercent)},` : ""} ${amd ? `AMD ${pct(amd.changePercent)},` : ""} ${nvda ? `엔비디아 ${pct(nvda.changePercent)}.` : ""} AI 투자 사이클의 지속 가능성이 쟁점입니다.`,
+    `📊 두 번째 주제 — 기업 실적입니다 (${usTimeLabel}). ${googl ? `알파벳 ${pct(googl.changePercent)},` : ""} ${amd ? `AMD ${pct(amd.changePercent)},` : ""} ${nvda ? `엔비디아 ${pct(nvda.changePercent)}.` : ""} AI 투자 사이클의 지속 가능성이 쟁점입니다.`,
     "earnings"
   )
 
@@ -271,7 +283,7 @@ function generateDebate(
   // ━━━━━━━━━ 4. 금리·환율 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `🏛️ 세 번째 주제 — 금리와 환율. ${t10 ? `10년물 ${t10.price.toFixed(2)}% (${pct(t10.changePercent)}),` : ""} ${dollar ? `달러 인덱스 ${fmt(dollar.price, 1)} (${pct(dollar.changePercent)}),` : ""} ${krw ? `원/달러 ${fmt(krw.price, 0)}원 (${pct(krw.changePercent)}).` : ""}`,
+    `🏛️ 세 번째 주제 — 금리와 환율. ${t10 ? `10년물 ${t10.price.toFixed(2)}% (${pct(t10.changePercent)}),` : ""} ${dollar ? `달러 인덱스 ${fmt(dollar.price, 1)} (${pct(dollar.changePercent)})은 ${usTimeLabel},` : ""} ${krw ? `원/달러 ${fmt(krw.price, 0)}원 (${pct(krw.changePercent)})은 ${krTimeLabel}.` : ""}`,
     "macro"
   )
 
@@ -289,7 +301,7 @@ function generateDebate(
   // ━━━━━━━━━ 5. 원자재·에너지 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `⛽ 네 번째 주제 — 원자재·에너지. ${gold ? `금 $${fmt(gold.price)} (${pct(gold.changePercent)}),` : ""} ${oil ? `WTI $${fmt(oil.price)} (${pct(oil.changePercent)}).` : ""} ${defenseStrong ? " 방어주·에너지 섹터 상대 강세 주목." : ""}`,
+    `⛽ 네 번째 주제 — 원자재·에너지 (${usTimeLabel}). ${gold ? `금 $${fmt(gold.price)} (${pct(gold.changePercent)}),` : ""} ${oil ? `WTI $${fmt(oil.price)} (${pct(oil.changePercent)}).` : ""} ${defenseStrong ? " 방어주·에너지 섹터 상대 강세 주목." : ""}`,
     "commodity"
   )
 
@@ -326,7 +338,7 @@ function generateDebate(
   // ━━━━━━━━━ 6. 코인·가상자산 (NEW) ━━━━━━━━━
 
   add("moderator", "사회자",
-    `₿ 다섯 번째 주제 — 코인과 가상자산입니다. ${btc ? `비트코인 $${fmt(btc.price, 0)} (${pct(btc.changePercent)}),` : ""} ${eth ? `이더리움 $${fmt(eth.price, 0)} (${pct(eth.changePercent)}),` : ""} ${sol ? `솔라나 $${fmt(sol.price, 1)} (${pct(sol.changePercent)}).` : ""} 주식 시장과의 상관관계가 핵심 쟁점입니다.`,
+    `₿ 다섯 번째 주제 — 코인과 가상자산입니다 (${cryptoTimeLabel}). ${btc ? `비트코인 $${fmt(btc.price, 0)} (${pct(btc.changePercent)}),` : ""} ${eth ? `이더리움 $${fmt(eth.price, 0)} (${pct(eth.changePercent)}),` : ""} ${sol ? `솔라나 $${fmt(sol.price, 1)} (${pct(sol.changePercent)}).` : ""} 주식 시장과의 상관관계가 핵심 쟁점입니다.`,
     "crypto"
   )
 
@@ -375,7 +387,7 @@ function generateDebate(
   // ━━━━━━━━━ 7. 한국 시장 ━━━━━━━━━
 
   add("moderator", "사회자",
-    `🇰🇷 여섯 번째 주제 — 한국 시장. ${kospi ? `코스피 ${fmt(kospi.price)} (${pct(kospi.changePercent)}),` : ""} ${kosdaq ? `코스닥 ${fmt(kosdaq.price)} (${pct(kosdaq.changePercent)}).` : ""} ${krw ? `원/달러 ${fmt(krw.price, 0)}원.` : ""} 외국인 매도·정치 불안정·반도체 관세가 변수입니다.`,
+    `🇰🇷 여섯 번째 주제 — 한국 시장 (${krTimeLabel}). ${kospi ? `코스피 ${fmt(kospi.price)} (${pct(kospi.changePercent)}),` : ""} ${kosdaq ? `코스닥 ${fmt(kosdaq.price)} (${pct(kosdaq.changePercent)}).` : ""} ${krw ? `원/달러 ${fmt(krw.price, 0)}원.` : ""} 외국인 매도·정치 불안정·반도체 관세가 변수입니다.`,
     "korea"
   )
 
@@ -601,7 +613,23 @@ export default function DebatePage() {
   const [showStocks, setShowStocks] = useState(false)
   const [showCrypto, setShowCrypto] = useState(false)
   const [summaryVerdict, setSummaryVerdict] = useState<ReturnType<typeof generateSummaryVerdict> | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<string>("")
   const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // 시세 카드용 시간 라벨 계산
+  const getTimeLabels = () => {
+    const now = lastUpdated ? new Date(lastUpdated) : new Date()
+    const kstHour = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" })).getHours()
+    const usMarketClosed = kstHour >= 6 && kstHour < 22
+    return {
+      us: usMarketClosed ? "전일 마감" : "실시간",
+      kr: "당일 마감",
+      crypto: "실시간",
+      macro: usMarketClosed ? "전일 마감" : "실시간",
+      stocks: usMarketClosed ? "전일 마감" : "실시간",
+    }
+  }
+  const timeLabels = getTimeLabels()
 
   const handleShare = async () => {
     const url = window.location.href
@@ -629,12 +657,13 @@ export default function DebatePage() {
       setMarketData(data.marketData)
       setStockData(data.stockData)
       setDate(data.date)
+      setLastUpdated(data.lastUpdated || new Date().toISOString())
 
       // 종합 한마디 생성
       setSummaryVerdict(generateSummaryVerdict(data.marketData, data.stockData || {}))
 
       // 토론 생성
-      const debate = generateDebate(data.marketData, data.stockData || {}, data.date)
+      const debate = generateDebate(data.marketData, data.stockData || {}, data.date, data.lastUpdated)
       setMessages(debate)
       setIsStreaming(true)
     } catch (err) {
@@ -730,28 +759,28 @@ export default function DebatePage() {
           </div>
           <div className="px-4 divide-y divide-border/50">
             <div className="py-1">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">US Market</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">US Market · {timeLabels.us}</span>
               {usMarkets.map(key => marketData[key] && <PriceCard key={key} data={marketData[key]} />)}
             </div>
             <div className="py-1">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">KR Market</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">KR Market · {timeLabels.kr}</span>
               {krMarkets.map(key => marketData[key] && <PriceCard key={key} data={marketData[key]} />)}
             </div>
             {showCrypto && (
               <div className="py-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Crypto</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Crypto · {timeLabels.crypto}</span>
                 {cryptoMarkets.map(key => marketData[key] && <PriceCard key={key} data={marketData[key]} />)}
               </div>
             )}
             {showAllMarkets && (
               <div className="py-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Macro</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Macro · {timeLabels.macro}</span>
                 {macroMarkets.map(key => marketData[key] && <PriceCard key={key} data={marketData[key]} />)}
               </div>
             )}
             {showStocks && stockData && (
               <div className="py-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Key Stocks</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mt-2 block">Key Stocks · {timeLabels.stocks}</span>
                 {keyStockKeys.map(key => stockData[key] && <PriceCard key={key} data={stockData[key]} />)}
               </div>
             )}
