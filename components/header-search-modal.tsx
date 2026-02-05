@@ -281,10 +281,25 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
                   }`}
                 >
                   <div>
-                    <span className="font-semibold text-primary">{result.ticker}</span>
-                    <span className="ml-2 text-foreground">{result.name}</span>
+                    {(result as any).isKorean ? (
+                      <>
+                        <span className="font-semibold text-primary">{result.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{(result as any).stockCode}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-primary">{result.ticker}</span>
+                        <span className="ml-2 text-foreground">{result.name}</span>
+                      </>
+                    )}
                   </div>
-                  <span className="text-xs text-muted-foreground">{result.exchange}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    (result as any).isKorean 
+                      ? "bg-blue-100 text-blue-700" 
+                      : "text-muted-foreground"
+                  }`}>
+                    {(result as any).isKorean ? (result.exchange === "KOSPI" ? "코스피" : "코스닥") : result.exchange}
+                  </span>
                 </button>
               ))}
             </div>
@@ -300,7 +315,7 @@ export function HeaderSearchModal({ isOpen, onClose }: HeaderSearchModalProps) {
           {/* 안내 문구 */}
           {query.length === 0 && (
             <div className="p-4 text-center text-muted-foreground text-sm">
-              종목명(한글/영문) 또는 티커를 입력하세요
+              미국·한국 종목명 또는 티커를 입력하세요
             </div>
           )}
         </div>

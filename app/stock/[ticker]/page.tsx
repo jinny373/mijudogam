@@ -357,8 +357,20 @@ export default function StockDetailPage() {
       setIsLoading(true)
       setError(null)
 
-      // v9.40: 매번 새로운 타임스탬프로 캐시 버스팅
-      const response = await fetch(`/api/stock/${ticker}?v=${Date.now()}`)
+      // 한국 주식 감지: 숫자.KS, 숫자.KQ 패턴
+      const isKR = /^\d+\.(KS|KQ)$/i.test(ticker)
+      
+      let apiUrl: string
+      if (isKR) {
+        // 한국 주식: stock-kr API 사용
+        const stockCode = ticker.split(".")[0]
+        apiUrl = `/api/stock-kr/${stockCode}?v=${Date.now()}`
+      } else {
+        // 미국 주식: 기존 API
+        apiUrl = `/api/stock/${ticker}?v=${Date.now()}`
+      }
+
+      const response = await fetch(apiUrl)
       const data = await response.json()
 
       if (!response.ok) {
@@ -366,14 +378,59 @@ export default function StockDetailPage() {
         return
       }
 
-      setStockData(data)
+      // 한국 주식인 경우 데이터 구조 통일
+      if (isKR && data.isKorean) {
+        // 기존 미국 주식 페이지 구조에 맞게 변환
+        const converted = {
+          ...data,
+          name: data.basicInfo.name,
+          ticker: data.basicInfo.ticker,
+          exchange: data.basicInfo.exchange,
+          price: data.basicInfo.price,
+          change: data.basicInfo.change,
+          changePercent: data.basicInfo.changePercent,
+          marketCap: data.basicInfo.marketCap,
+          volume: data.basicInfo.volume,
+          sector: data.basicInfo.sector,
+          industry: data.basicInfo.industry,
+          signals: data.signals,
+          signalDetails: data.signalDetails,
+          // 한국 전용 필드
+          isKorean: true,
+          benchmarkName: data.benchmarkName || "KOSPI",
+          stockCode: data.basicInfo.stockCode,
+          // 재무 데이터
+          roe: data.financials.roe,
+          operatingMargin: data.financials.operatingMargin,
+          profitMargin: data.financials.profitMargin,
+          debtToEquity: data.financials.debtRatio,
+          revenueGrowth: data.financials.revenueGrowth,
+          per: data.financials.per,
+          perType: data.financials.perType,
+          pbr: data.financials.pbr,
+          revenue: data.financials.revenue,
+          revenueFormatted: data.financials.revenueFormatted,
+          netIncome: data.financials.netIncome,
+          netIncomeFormatted: data.financials.netIncomeFormatted,
+          dataSource: data.financials.dataSource,
+          dartYear: data.financials.dartYear,
+          // 주가 성과
+          performance: data.performance,
+          priceInfo: data.priceInfo,
+        }
+        setStockData(converted)
+      } else {
+        setStockData(data)
+      }
+
       setIsWatchlisted(isInWatchlist(ticker))
       
       // 최근 본 종목에 저장
-      saveRecentStock(ticker.toUpperCase(), data.name)
+      const stockName = isKR ? data.basicInfo?.name : data.name
+      saveRecentStock(ticker.toUpperCase(), stockName || ticker)
       
       // 페이지뷰 로깅
-      logWatchlistEvent("stock_view", { ticker: ticker.toUpperCase(), name: data.name })
+      logWatchlistEvent("stock_view", { ticker: ticker.toUpperCase(), name: stockName || ticker })
     } catch (err) {
       console.error("Error:", err)
       setError("데이터를 불러오는 중 오류가 발생했어요")
@@ -480,22 +537,51 @@ export default function StockDetailPage() {
             </button>
           </div>
           <div className="mt-2 flex items-baseline gap-3">
-            <span className="text-3xl font-bold">${stockData.price?.toFixed(2)}</span>
-            <span className={`text-lg font-semibold ${isPositive ? "text-[#22C55E]" : "text-[#EF4444]"}`}>
-              {isPositive ? "+" : ""}${stockData.change?.toFixed(2)} ({isPositive ? "+" : ""}{stockData.changePercent?.toFixed(2)}%)
-            </span>
+            {stockData.isKorean ? (
+              <>
+                <span className="text-3xl font-bold">{Number(stockData.price).toLocaleString()}원</span>
+                <span className={`text-lg font-semibold ${isPositive ? "text-[#22C55E]" : "text-[#EF4444]"}`}>
+                  {isPositive ? "+" : ""}{Number(stockData.change).toLocaleString()}원 ({isPositive ? "+" : ""}{stockData.changePercent?.toFixed(2)}%)
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-3xl font-bold">${stockData.price?.toFixed(2)}</span>
+                <span className={`text-lg font-semibold ${isPositive ? "text-[#22C55E]" : "text-[#EF4444]"}`}>
+                  {isPositive ? "+" : ""}${stockData.change?.toFixed(2)} ({isPositive ? "+" : ""}{stockData.changePercent?.toFixed(2)}%)
+                </span>
+              </>
+            )}
           </div>
         </section>
 
-        {/* AI Summary Card */}
-        <Card className="bg-primary p-5 rounded-2xl border-0 shadow-lg">
-          <p className="text-primary-foreground/80 text-sm font-medium mb-1">📌 이 종목을 한마디로?</p>
-          <p className="text-primary-foreground text-lg font-semibold leading-relaxed">
-            {stockData.aiSummary}
-          </p>
-        </Card>
+        {/* AI Summary Card - 미국 주식만 */}
+        {!stockData.isKorean && stockData.aiSummary && (
+          <Card className="bg-primary p-5 rounded-2xl border-0 shadow-lg">
+            <p className="text-primary-foreground/80 text-sm font-medium mb-1">📌 이 종목을 한마디로?</p>
+            <p className="text-primary-foreground text-lg font-semibold leading-relaxed">
+              {stockData.aiSummary}
+            </p>
+          </Card>
+        )}
 
-        {/* Pros and Cons */}
+        {/* 한국 주식 - 데이터 출처 표시 */}
+        {stockData.isKorean && (
+          <Card className="bg-blue-50 dark:bg-blue-950 p-4 rounded-2xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🇰🇷</span>
+              <p className="text-blue-800 dark:text-blue-200 text-sm font-semibold">한국 주식</p>
+            </div>
+            <p className="text-blue-700 dark:text-blue-300 text-sm leading-relaxed">
+              재무 데이터: <span className="font-medium">{stockData.dataSource || "DART"}</span> ({stockData.dartYear}년)
+              {" · "}주가: Yahoo Finance
+              {" · "}벤치마크: {stockData.benchmarkName || "KOSPI"}
+            </p>
+          </Card>
+        )}
+
+        {/* Pros and Cons - 미국 주식만 */}
+        {!stockData.isKorean && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Pros */}
           <Card className="p-4 rounded-xl border shadow-sm">
@@ -527,6 +613,7 @@ export default function StockDetailPage() {
             </ul>
           </Card>
         </div>
+        )}
 
         {/* Key Metrics */}
         <section>
