@@ -328,7 +328,7 @@ const koreanStockMap: Record<string, string> = {
   "디웨이브": "QBTS",
   "퀀텀컴퓨팅": "QUBT",
   "퀀텀 컴퓨팅": "QUBT",
-  
+
   // ===== 핀테크/암호화폐 =====
   "코인베이스": "COIN",
   "로빈후드": "HOOD",
@@ -1072,6 +1072,13 @@ const searchAliases: Record<string, string> = {
   "양자컴퓨터": "IONQ",
   "양자컴퓨팅": "IONQ",
   "양자": "IONQ",
+
+  // ===== v9.24: 리졸브/켄코아 =====
+  "리졸브": "RZLV",
+  "리졸브AI": "RZLV",
+  "리졸브 AI": "RZLV",
+  "켄코아": "KENK",
+  "켄코아에어로스페이스": "KENK",
 
   // v9.24: 대규모 확장 별칭
   // eVTOL/UAM
