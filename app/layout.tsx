@@ -11,9 +11,6 @@ import './globals.css'
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
-// 배포 시마다 변경되는 버전 (빌드 타임에 고정)
-const APP_VERSION = process.env.NEXT_PUBLIC_BUILD_ID || Date.now().toString();
-
 export const metadata: Metadata = {
   title: '미주도감 - 미국 주식 AI 분석 서비스',
   description: 'AI가 미국 주식을 쉽게 해석해드립니다. 종목 분석, 투자 인사이트를 한눈에.',
@@ -56,31 +53,34 @@ export default function RootLayout({
     <html lang="ko">
       <body className={`font-sans antialiased`}>
         {/* v9.25: 자동 버전 체크 - 새 배포 시 자동 새로고침 */}
-        <Script id="version-check" strategy="beforeInteractive">
+        <Script id="version-check" strategy="afterInteractive">
           {`
             (function() {
-              var APP_VERSION = "${APP_VERSION}";
-              var STORED_VERSION = localStorage.getItem('mijudogam_app_version');
-              
-              if (STORED_VERSION && STORED_VERSION !== APP_VERSION) {
-                // 새 버전 감지 - 캐시 클리어 후 새로고침
-                localStorage.setItem('mijudogam_app_version', APP_VERSION);
-                
-                // 캐시 삭제 시도
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    names.forEach(function(name) {
-                      caches.delete(name);
-                    });
-                  });
-                }
-                
-                // 강제 새로고침 (캐시 무시)
-                window.location.reload(true);
-              } else if (!STORED_VERSION) {
-                // 첫 방문
-                localStorage.setItem('mijudogam_app_version', APP_VERSION);
-              }
+              fetch('/api/version', { cache: 'no-store' })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                  var SERVER_VERSION = data.version;
+                  var STORED_VERSION = localStorage.getItem('mijudogam_app_version');
+                  
+                  if (STORED_VERSION && STORED_VERSION !== SERVER_VERSION) {
+                    localStorage.setItem('mijudogam_app_version', SERVER_VERSION);
+                    
+                    if ('caches' in window) {
+                      caches.keys().then(function(names) {
+                        names.forEach(function(name) {
+                          caches.delete(name);
+                        });
+                      });
+                    }
+                    
+                    window.location.reload(true);
+                  } else if (!STORED_VERSION) {
+                    localStorage.setItem('mijudogam_app_version', SERVER_VERSION);
+                  }
+                })
+                .catch(function(err) {
+                  console.log('Version check failed:', err);
+                });
             })();
           `}
         </Script>
