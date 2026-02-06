@@ -108,6 +108,8 @@ const koreanNameMap: { [key: string]: string } = {
   // ═══════════════════════════════════════════════════════════════
   "한올바이오파마": "HNOLV", // 또는 한국주식으로 분류
   "리졸브AI": "RZLV", "리졸브": "RZLV", "RZLV": "RZLV",
+  "리졸브 AI": "RZLV", "리졸브에이아이": "RZLV", "리졸브 에이아이": "RZLV",
+  "리졸브ai": "RZLV", "resolveai": "RZLV", "resolve": "RZLV",
   "템퍼스": "TEM", "템퍼스AI": "TEM", "템퍼스에이아이": "TEM",
   "유나이티드헬스": "UNH", "유나이티드헬스그룹": "UNH", "유나이티드": "UNH",
   "일라이릴리": "LLY", "릴리": "LLY",
