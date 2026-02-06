@@ -20,14 +20,14 @@ function HomeContent() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8 -mt-12">
-        {/* Cat Researcher Illustration - 사이즈 축소 */}
+        {/* Cat Researcher Illustration - 사이즈 조정 */}
         <div className="mb-4">
-          <div className="relative w-36 h-36 sm:w-44 sm:h-44">
+          <div className="relative w-44 h-44 sm:w-52 sm:h-52">
             <Image
               src="/cat-researcher.png"
               alt="귀여운 고양이 연구원"
               fill
-              className="object-contain rounded-2xl"
+              className="object-contain"
               priority
             />
           </div>

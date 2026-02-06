@@ -1,5 +1,5 @@
 // 배포할 때마다 이 버전을 올려주세요! (또는 날짜로)
-const CACHE_VERSION = 'v2-' + '20260206c';
+const CACHE_VERSION = 'v2-' + '20260206d';
 const CACHE_NAME = 'mijudogam-' + CACHE_VERSION;
 const OFFLINE_URL = '/offline.html';
 
