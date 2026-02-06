@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { HeaderSearchModal } from "@/components/header-search-modal"
+import { trackDiscoverAllgreenClick } from "@/lib/analytics"
 
 // ═══════════════════════════════════════════════════════════════
 // 타입 정의
@@ -222,8 +223,14 @@ function StockCard({ stock, isAllGreen = false }: { stock: StockData; isAllGreen
     valuation: "현재몸값",
   };
 
+  const handleClick = () => {
+    if (isAllGreen) {
+      trackDiscoverAllgreenClick(stock.ticker);  // GA4 이벤트
+    }
+  };
+
   return (
-    <Link href={`/stock/${stock.ticker}`}>
+    <Link href={`/stock/${stock.ticker}`} onClick={handleClick}>
       <Card className={`p-4 hover:shadow-md transition-shadow ${
         isAllGreen ? "border-green-200 bg-green-50/30" : ""
       }`}>

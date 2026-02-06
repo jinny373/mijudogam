@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { HeaderSearchModal } from "@/components/header-search-modal"
+import { trackSectorMacroClick, trackSectorFlowClick, trackSectorValuechainClick, trackSectorDetailClick } from "@/lib/analytics"
 
 // ═══════════════════════════════════════════════════════════════
 // 타입 정의
@@ -137,6 +138,16 @@ export default function SectorPage() {
     }
   };
 
+  // 탭 클릭 핸들러 with GA4 이벤트
+  const handleTabClick = (tab: "macro" | "sector" | "valuechain") => {
+    if (tab !== activeTab) {
+      if (tab === "macro") trackSectorMacroClick();
+      else if (tab === "sector") trackSectorFlowClick();
+      else if (tab === "valuechain") trackSectorValuechainClick();
+    }
+    setActiveTab(tab);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -193,19 +204,19 @@ export default function SectorPage() {
           <div className="flex">
             <TabButton 
               active={activeTab === "macro"} 
-              onClick={() => setActiveTab("macro")}
+              onClick={() => handleTabClick("macro")}
             >
               🌍 매크로
             </TabButton>
             <TabButton 
               active={activeTab === "sector"} 
-              onClick={() => setActiveTab("sector")}
+              onClick={() => handleTabClick("sector")}
             >
               📊 섹터 흐름
             </TabButton>
             <TabButton 
               active={activeTab === "valuechain"} 
-              onClick={() => setActiveTab("valuechain")}
+              onClick={() => handleTabClick("valuechain")}
             >
               🔗 AI 밸류체인
             </TabButton>
@@ -257,10 +268,10 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${
+      className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
         active 
-          ? "text-primary border-primary" 
-          : "text-muted-foreground border-transparent hover:text-foreground"
+          ? "border-primary text-primary" 
+          : "border-transparent text-muted-foreground hover:text-foreground"
       }`}
     >
       {children}
@@ -272,206 +283,90 @@ function TabButton({
 // 탭 1: 매크로
 // ═══════════════════════════════════════════════════════════════
 
-// ETF 티커 → 한글 변환
-const SECTOR_NAME_MAP: Record<string, string> = {
-  "XLK": "기술",
-  "XLF": "금융",
-  "XLV": "헬스케어",
-  "XLE": "에너지",
-  "XLU": "유틸리티",
-  "XLI": "산업재",
-  "XLY": "임의소비재",
-  "XLP": "필수소비재",
-  "XLB": "소재",
-  "XLRE": "부동산",
-  "XLC": "통신",
-};
-
-function tickersToKorean(tickers: string[]): string {
-  return tickers.map(t => SECTOR_NAME_MAP[t] || t).join(", ");
-}
-
 function MacroTab({ data }: { data: MacroData }) {
   return (
     <div className="space-y-4">
-      {/* AI 종합 판단 - 맨 위로 */}
+      {/* AI 해석 */}
       <Card className="p-4 bg-blue-50 border-blue-200">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-lg">💡</span>
-          <h3 className="font-semibold text-blue-900">AI 종합 판단</h3>
+          <h3 className="font-semibold text-blue-900">AI 해석</h3>
         </div>
         <p className="text-sm text-blue-800 leading-relaxed">
           {data.summary}
         </p>
       </Card>
 
-      {/* 금리 */}
+      {/* 10년물 금리 */}
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">💵</span>
-          <h3 className="font-semibold">금리 (10년물)</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">🏦 미국 10년물 금리</h3>
+          <span className="text-2xl font-bold">{data.treasury10Y.value.toFixed(2)}%</span>
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-2xl font-bold">{data.treasury10Y.value.toFixed(2)}%</p>
-            <p className="text-sm text-muted-foreground">
-              월간 {data.treasury10Y.change1M > 0 ? "+" : ""}{data.treasury10Y.change1M.toFixed(2)}%
-            </p>
-          </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-            data.treasury10Y.trend === "down" 
-              ? "bg-green-100 text-green-700" 
-              : data.treasury10Y.trend === "up"
-              ? "bg-red-100 text-red-700"
-              : "bg-gray-100 text-gray-700"
-          }`}>
-            {data.treasury10Y.trendLabel}
-          </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-sm ${data.treasury10Y.change1M >= 0 ? "text-red-600" : "text-green-600"}`}>
+            1달 전 대비 {data.treasury10Y.change1M >= 0 ? "+" : ""}{(data.treasury10Y.change1M * 100).toFixed(0)}bp
+          </span>
+          <span className="text-xs px-2 py-0.5 bg-gray-100 rounded">{data.treasury10Y.trendLabel}</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          → {data.treasury10Y.trend === "down" ? "성장주/기술주에 유리 🟢" : 
-             data.treasury10Y.trend === "up" ? "가치주/금융주에 유리 🟡" : "중립"}
-        </p>
       </Card>
 
-      {/* 달러 */}
+      {/* 달러 인덱스 */}
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">💲</span>
-          <h3 className="font-semibold">달러 인덱스</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">💵 달러 인덱스 (DXY)</h3>
+          <span className="text-2xl font-bold">{data.dollarIndex.value.toFixed(1)}</span>
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-2xl font-bold">{data.dollarIndex.value.toFixed(1)}</p>
-            <div className="flex gap-3 mt-1">
-              <p className="text-xs text-muted-foreground">
-                1개월 <span className={data.dollarIndex.change1M >= 0 ? "text-green-600" : "text-red-600"}>
-                  {data.dollarIndex.change1M > 0 ? "+" : ""}{data.dollarIndex.change1M.toFixed(1)}%
-                </span>
-              </p>
-              <p className="text-xs text-muted-foreground">
-                3개월 <span className={data.dollarIndex.change3M >= 0 ? "text-green-600" : "text-red-600"}>
-                  {data.dollarIndex.change3M > 0 ? "+" : ""}{data.dollarIndex.change3M.toFixed(1)}%
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-            data.dollarIndex.trend === "weak" 
-              ? "bg-blue-100 text-blue-700" 
-              : data.dollarIndex.trend === "strong"
-              ? "bg-red-100 text-red-700"
-              : "bg-gray-100 text-gray-700"
-          }`}>
-            {data.dollarIndex.trendLabel}
-          </div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`text-sm ${data.dollarIndex.change1M >= 0 ? "text-green-600" : "text-red-600"}`}>
+            1달 {data.dollarIndex.change1M >= 0 ? "+" : ""}{data.dollarIndex.change1M.toFixed(1)}%
+          </span>
+          <span className={`text-sm ${data.dollarIndex.change3M >= 0 ? "text-green-600" : "text-red-600"}`}>
+            3달 {data.dollarIndex.change3M >= 0 ? "+" : ""}{data.dollarIndex.change3M.toFixed(1)}%
+          </span>
         </div>
-
-        {/* 추세 상세 */}
-        {data.dollarIndex.trendDetail && data.dollarIndex.trendDetail.description && (
-          <div className={`mt-3 p-2.5 rounded-lg text-xs leading-relaxed ${
-            data.dollarIndex.trendDetail.direction === "weak" 
-              ? "bg-blue-50 text-blue-800" 
-              : data.dollarIndex.trendDetail.direction === "strong"
-              ? "bg-red-50 text-red-800"
-              : "bg-gray-50 text-gray-700"
-          }`}>
-            <span className="font-medium">
-              {data.dollarIndex.trendDetail.direction === "weak" ? "📉 " : 
-               data.dollarIndex.trendDetail.direction === "strong" ? "📈 " : "➡️ "}
-            </span>
-            {data.dollarIndex.trendDetail.description}
-          </div>
-        )}
-
-        <p className="text-sm text-muted-foreground mt-2">
-          → {data.dollarIndex.trend === "weak" ? "원자재/빅테크에 유리 🟢" : 
-             data.dollarIndex.trend === "strong" ? "내수주에 유리 🔴" : "중립"}
-        </p>
+        <p className="text-xs text-muted-foreground">{data.dollarIndex.trendDetail?.description}</p>
       </Card>
 
       {/* VIX */}
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">😰</span>
-          <h3 className="font-semibold">VIX (공포지수)</h3>
-        </div>
         <div className="flex items-center justify-between mb-2">
-          <div>
-            <p className="text-2xl font-bold">{data.vix.value.toFixed(1)}</p>
-          </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-            data.vix.color === "green" 
-              ? "bg-green-100 text-green-700" 
-              : data.vix.color === "yellow"
-              ? "bg-yellow-100 text-yellow-700"
-              : data.vix.color === "orange"
-              ? "bg-orange-100 text-orange-700"
-              : "bg-red-100 text-red-700"
-          }`}>
-            {data.vix.levelLabel}
-          </div>
+          <h3 className="font-semibold">😱 공포지수 (VIX)</h3>
+          <span className="text-2xl font-bold">{data.vix.value.toFixed(1)}</span>
         </div>
-        {/* VIX 게이지 */}
-        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-          <div 
-            className={`h-full transition-all ${
-              data.vix.value < 20 ? "bg-green-500" :
-              data.vix.value < 25 ? "bg-yellow-500" :
-              data.vix.value < 30 ? "bg-orange-500" : "bg-red-500"
-            }`}
-            style={{ width: `${Math.min(data.vix.value / 40 * 100, 100)}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-          <span>0</span>
-          <span>20</span>
-          <span>40</span>
-        </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          → {data.vix.level === "low" || data.vix.level === "normal" 
-              ? "위험자산 투자 OK 🟢" 
-              : "신중한 접근 필요 🔴"}
-        </p>
+        <span className={`text-sm px-2 py-0.5 rounded ${
+          data.vix.level === "extreme_fear" ? "bg-red-100 text-red-700" :
+          data.vix.level === "fear" ? "bg-orange-100 text-orange-700" :
+          data.vix.level === "normal" ? "bg-green-100 text-green-700" :
+          "bg-blue-100 text-blue-700"
+        }`}>
+          {data.vix.levelLabel}
+        </span>
       </Card>
 
       {/* 경기 사이클 */}
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">📈</span>
-          <h3 className="font-semibold">경기 사이클</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold">🔄 현재 경기 사이클</h3>
+          <span className="text-lg font-bold text-primary">{data.cycle.positionKo}</span>
         </div>
-        
-        {/* 사이클 시각화 */}
-        <div className="flex items-center justify-between mb-4 px-2">
-          {["회복기", "확장기", "후기", "침체기"].map((stage, idx) => {
-            const positions = ["recovery", "expansion", "late", "recession"];
-            const isActive = data.cycle.position === positions[idx];
-            return (
-              <div key={stage} className="flex flex-col items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                  isActive ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
-                }`}>
-                  {idx + 1}
-                </div>
-                <span className={`text-xs mt-1 ${isActive ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                  {stage}
-                </span>
-                {isActive && <span className="text-xs">↑ 현재</span>}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm">
-            <span className="text-green-600 font-medium">✅ 유리한 섹터: </span>
-            {tickersToKorean(data.cycle.favorableSectors)}
-          </p>
-          <p className="text-sm">
-            <span className="text-red-600 font-medium">⚠️ 불리한 섹터: </span>
-            {tickersToKorean(data.cycle.unfavorableSectors)}
-          </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-green-50 rounded-lg p-3">
+            <p className="text-xs text-green-700 font-medium mb-1">유리한 섹터</p>
+            <div className="flex flex-wrap gap-1">
+              {data.cycle.favorableSectors.map(s => (
+                <span key={s} className="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded">{s}</span>
+              ))}
+            </div>
+          </div>
+          <div className="bg-red-50 rounded-lg p-3">
+            <p className="text-xs text-red-700 font-medium mb-1">불리한 섹터</p>
+            <div className="flex flex-wrap gap-1">
+              {data.cycle.unfavorableSectors.map(s => (
+                <span key={s} className="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded">{s}</span>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
     </div>
@@ -489,35 +384,33 @@ function SectorTab({
   selectedPeriod,
   onPeriodChange,
 }: { 
-  sectors: SectorData[]; 
+  sectors: SectorData[];
   market: APIResponse["market"];
   summary: string;
   selectedPeriod: "1W" | "1M" | "3M" | "6M" | "1Y";
-  onPeriodChange: (period: "1W" | "1M" | "3M" | "6M" | "1Y") => void;
+  onPeriodChange: (p: "1W" | "1M" | "3M" | "6M" | "1Y") => void;
 }) {
-  // 선택된 기간에 따른 데이터 키
-  const periodKey = `change${selectedPeriod}` as keyof SectorData;
-  const rsKey = `rs${selectedPeriod}` as keyof SectorData;
-  const marketChange = market[`change${selectedPeriod}` as keyof typeof market] as number;
+  const periodMap: Record<string, { key: keyof SectorData; rsKey: keyof SectorData; label: string }> = {
+    "1W": { key: "change1W", rsKey: "rs1W", label: "1주" },
+    "1M": { key: "change1M", rsKey: "rs1M", label: "1달" },
+    "3M": { key: "change3M", rsKey: "rs3M", label: "3달" },
+    "6M": { key: "change6M", rsKey: "rs6M", label: "6달" },
+    "1Y": { key: "change1Y", rsKey: "rs1Y", label: "1년" },
+  };
 
-  // 상대강도 기준 정렬
-  const sortedSectors = [...sectors].sort((a, b) => {
-    const aRs = a[rsKey] as number;
-    const bRs = b[rsKey] as number;
-    return bRs - aRs;
-  });
-
-  // 그룹 분류
-  const hotSectors = sortedSectors.filter(s => (s[rsKey] as number) > 5);
-  const neutralSectors = sortedSectors.filter(s => {
-    const rs = s[rsKey] as number;
-    return rs >= -5 && rs <= 5;
-  });
-  const coldSectors = sortedSectors.filter(s => (s[rsKey] as number) < -5);
+  const { key: periodKey, rsKey } = periodMap[selectedPeriod];
+  
+  // 정렬 (RS 기준)
+  const sortedSectors = [...sectors].sort((a, b) => (b[rsKey] as number) - (a[rsKey] as number));
+  
+  // 상태 분류
+  const hotSectors = sortedSectors.filter(s => s.status === "hot");
+  const neutralSectors = sortedSectors.filter(s => s.status === "neutral");
+  const coldSectors = sortedSectors.filter(s => s.status === "cold");
 
   return (
     <div className="space-y-4">
-      {/* AI 해석 - 맨 위로 */}
+      {/* AI 해석 */}
       <Card className="p-4 bg-blue-50 border-blue-200">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-lg">💡</span>
@@ -528,42 +421,37 @@ function SectorTab({
         </p>
       </Card>
 
-      {/* 기간 선택 */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {(["1W", "1M", "3M", "6M", "1Y"] as const).map((period) => (
-          <button
-            key={period}
-            onClick={() => onPeriodChange(period)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-              selectedPeriod === period
-                ? "bg-primary text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {period === "1W" ? "1주" : 
-             period === "1M" ? "1개월" :
-             period === "3M" ? "3개월" :
-             period === "6M" ? "6개월" : "1년"}
-          </button>
-        ))}
-      </div>
-
       {/* 시장 기준 */}
       <Card className="p-3 bg-gray-50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">📈 S&P 500 (기준)</span>
-          </div>
-          <span className={`font-semibold ${marketChange >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {marketChange >= 0 ? "+" : ""}{marketChange.toFixed(1)}%
+          <span className="text-sm font-medium">📈 S&P 500 (기준)</span>
+          <span className={`font-semibold ${(market as any)[periodKey] >= 0 ? "text-green-600" : "text-red-600"}`}>
+            {(market as any)[periodKey] >= 0 ? "+" : ""}{((market as any)[periodKey]).toFixed(1)}%
           </span>
         </div>
       </Card>
 
+      {/* 기간 선택 */}
+      <div className="flex gap-2 justify-center">
+        {Object.entries(periodMap).map(([k, v]) => (
+          <button
+            key={k}
+            onClick={() => onPeriodChange(k as any)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              selectedPeriod === k 
+                ? "bg-primary text-white" 
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       {/* 🔥 자금 유입 */}
       {hotSectors.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+          <h3 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
             🔥 시장 대비 강세 (자금 유입)
           </h3>
           <div className="space-y-2">
@@ -676,6 +564,11 @@ function ValueChainTab({
   valueChain: ValueChainData[];
   summary: string;
 }) {
+  // 종목 클릭 시 GA4 이벤트
+  const handleStockClick = (sectorName: string) => {
+    trackSectorDetailClick(sectorName);
+  };
+
   return (
     <div className="space-y-4">
       {/* AI 해석 - 맨 위로 */}
@@ -775,6 +668,7 @@ function ValueChainTab({
                 <Link
                   key={stock.ticker}
                   href={`/stock/${stock.ticker}`}
+                  onClick={() => handleStockClick(stage.name)}
                   className="px-2 py-1 bg-gray-100 rounded text-xs font-medium hover:bg-gray-200 transition-colors"
                 >
                   {stock.ticker}

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, PieChart, Sparkles, Heart, Zap } from "lucide-react"
+import { trackTabClick } from "@/lib/analytics"
 
 const tabs = [
   {
@@ -10,30 +11,35 @@ const tabs = [
     href: "/",
     icon: Home,
     matchPaths: ["/", "/stock"],
+    trackName: "home",
   },
   {
     name: "섹터",
     href: "/sector",
     icon: PieChart,
     matchPaths: ["/sector"],
+    trackName: "sector",
   },
   {
     name: "토론",
     href: "/debate",
     icon: Zap,
     matchPaths: ["/debate"],
+    trackName: "discussion",
   },
   {
     name: "발견",
     href: "/discover",
     icon: Sparkles,
     matchPaths: ["/discover"],
+    trackName: "discover",
   },
   {
     name: "관심",
     href: "/watchlist",
     icon: Heart,
     matchPaths: ["/watchlist"],
+    trackName: "watchlist",
   },
 ]
 
@@ -49,6 +55,13 @@ export function BottomNav() {
     return tab.matchPaths.some(path => pathname.startsWith(path))
   }
 
+  const handleTabClick = (tab: typeof tabs[0]) => {
+    // 이미 해당 탭에 있으면 트래킹 안 함
+    if (!isActive(tab)) {
+      trackTabClick(tab.trackName)
+    }
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t safe-area-bottom">
       <div className="max-w-2xl mx-auto">
@@ -61,6 +74,7 @@ export function BottomNav() {
               <Link
                 key={tab.name}
                 href={tab.href}
+                onClick={() => handleTabClick(tab)}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                   active 
                     ? "text-primary" 

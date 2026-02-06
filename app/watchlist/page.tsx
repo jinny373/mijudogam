@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { getWatchlist, removeFromWatchlist, logWatchlistEvent, WatchlistItem } from "@/lib/watchlist"
 import { HeaderSearchModal } from "@/components/header-search-modal"
+import { trackWatchlistClick, trackWatchlistRemove, trackWatchlistEditStart } from "@/lib/analytics"
 
 const statusDots: Record<string, string> = {
   green: "🟢",
@@ -72,6 +73,7 @@ export default function WatchlistPage() {
 
   // 관심 종목 제거
   const handleRemove = (ticker: string) => {
+    trackWatchlistRemove(ticker)  // GA4 이벤트
     removeFromWatchlist(ticker)
     setWatchlist(getWatchlist())
   }
@@ -79,8 +81,17 @@ export default function WatchlistPage() {
   // 종목 클릭
   const handleStockClick = (ticker: string) => {
     if (isEditMode) return
+    trackWatchlistClick(ticker)  // GA4 이벤트
     logWatchlistEvent("watchlist_click", { ticker })
     router.push(`/stock/${ticker}`)
+  }
+
+  // 편집 모드 토글
+  const handleEditToggle = () => {
+    if (!isEditMode) {
+      trackWatchlistEditStart()  // GA4 이벤트
+    }
+    setIsEditMode(!isEditMode)
   }
 
   // 지표 가져오기
@@ -120,7 +131,7 @@ export default function WatchlistPage() {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => setIsEditMode(!isEditMode)}
+            onClick={handleEditToggle}
             className={`flex-shrink-0 ${isEditMode ? "text-primary" : ""}`}
           >
             {isEditMode ? <X className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}

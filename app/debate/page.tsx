@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Search, Share2, RefreshCw, TrendingUp, TrendingDown, Minus, MessageCircle, Zap, Shield, ChevronDown, Globe, BarChart3, Landmark, Factory, Briefcase, AlertTriangle, Bitcoin } from "lucide-react"
+import { trackDiscussionScrollEnd } from "@/lib/analytics"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -794,6 +795,22 @@ export default function DebatePage() {
   useEffect(() => {
     if (visibleCount > 2) chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [visibleCount])
+
+// 스크롤 끝까지 도달 시 이벤트
+useEffect(() => {
+  const handleScroll = () => {
+    const scrollHeight = document.documentElement.scrollHeight;
+    const scrollTop = document.documentElement.scrollTop;
+    const clientHeight = document.documentElement.clientHeight;
+    
+    if (scrollTop + clientHeight >= scrollHeight - 100) {
+      trackDiscussionScrollEnd();
+    }
+  };
+  
+  window.addEventListener('scroll', handleScroll);
+  return () => window.removeEventListener('scroll', handleScroll);
+}, []);
 
   const usMarkets = ["sp500", "nasdaq", "dow"]
   const krMarkets = ["kospi", "kosdaq", "usdkrw"]
