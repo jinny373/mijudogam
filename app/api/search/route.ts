@@ -695,6 +695,20 @@ export async function GET(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // 2-1. 매핑된 티커가 있는데 Yahoo 결과에 없으면 직접 추가
+    // ═══════════════════════════════════════════════════════════════
+    if (mappedTicker && !usStocks.find(s => s.ticker === mappedTicker)) {
+      // 매핑된 티커를 결과 맨 앞에 추가
+      usStocks.unshift({
+        ticker: mappedTicker,
+        name: mappedTicker, // Yahoo에서 이름을 못 가져오면 티커로 표시
+        exchange: "US",
+        type: "EQUITY",
+        isKorean: false,
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // 3. 한국 + 미국 합쳐서 반환 (한국 먼저)
     // ═══════════════════════════════════════════════════════════════
     const allResults = [...krResults, ...usStocks];
