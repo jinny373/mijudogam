@@ -35,10 +35,10 @@ function HomeContent() {
 
         {/* Text Content - 간격 축소 */}
         <div className="text-center mb-6 space-y-1">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground text-balance">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-balance">
             어떤 주식이 궁금하세요?
           </h2>
-          <p className="text-muted-foreground text-sm sm:text-base">
+          <p className="text-muted-foreground text-base sm:text-lg">
             재무제표를 쉽게 해석해드릴게요
           </p>
         </div>
